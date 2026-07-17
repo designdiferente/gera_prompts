@@ -88,6 +88,18 @@
     background:#e2ecf7; color:#2b5c8c; padding:4px 10px; border-radius:20px; margin-top:6px;
   }
   [data-theme="dark"] .photo-badge{background:#1c3348; color:#8fc0ef;}
+  .obs-badge{
+    display:inline-flex; align-items:center; gap:4px; font-size:11px; font-weight:700;
+    background:#fde4c8; color:#8a4a06; padding:4px 10px; border-radius:20px;
+    border:none; cursor:pointer; margin-top:6px; margin-left:6px;
+  }
+  .obs-badge:hover{filter:brightness(0.95);}
+  [data-theme="dark"] .obs-badge{background:#4a2f0e; color:#f0b768;}
+  .obs-panel{
+    margin-top:8px; padding:10px 13px; background:#fff7ec; border:1px solid #f0d9b0;
+    border-radius:10px; font-size:13px; color:#5c4419;
+  }
+  [data-theme="dark"] .obs-panel{background:#2e2412; border-color:#4a3a1c; color:#f0d9a8;}
 
   /* ---------- tela de login (glass sobre degradê branco) ---------- */
   .login-screen{
@@ -1094,7 +1106,9 @@ function renderResults(results, warnings){
         <span class="code">Ref. ${r.codigo}</span>
         <span class="meta">${r.grade} · ${r.genero} · ${r.source}</span>
       </div>
-      ${r.hasPhotos ? `<div><span class="photo-badge">📷 Contém imagem de referência</span></div>` : ''}
+      ${r.hasPhotos ? `<div><span class="photo-badge">📷 Contém imagem de referência</span>${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button>` : ''}</div>`
+        : ((r.raw && r.raw.obs && r.raw.obs.trim()) ? `<div><button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button></div>` : '')}
+      ${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<div class="obs-panel" id="obs-panel-${i}" style="display:none;">${escapeHtml(r.raw.obs)}</div>` : ''}
       <div class="prompt-box" id="prompt-${i}" contenteditable="true">${r.savedHtml != null ? r.savedHtml : segmentsToHtml(r.segments)}</div>
       ${r.notes.length ? `<div class="notes">${r.notes.map(n=>`<div>! ${n}</div>`).join('')}</div>` : ''}
       <div class="card-actions">
@@ -1134,6 +1148,13 @@ function renderSegmentoPills(i, category){
     btn.addEventListener('click', () => { poseStates[i].segmento = value; renderSegmentoPills(i, category); });
     el.appendChild(btn);
   });
+}
+function escapeHtml(str){
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function toggleObs(i){
+  const panel = document.getElementById(`obs-panel-${i}`);
+  if (panel) panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
 }
 function togglePosePanel(i){ document.getElementById(`pose-panel-${i}`).classList.toggle('open'); }
 
