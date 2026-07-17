@@ -100,6 +100,7 @@
     border-radius:10px; font-size:13px; color:#5c4419;
   }
   [data-theme="dark"] .obs-panel{background:#2e2412; border-color:#4a3a1c; color:#f0d9a8;}
+  .ref-check{width:17px; height:17px; accent-color:var(--mono-btn-bg); margin-right:10px; flex-shrink:0;}
 
   /* ---------- tela de login (glass sobre degradê branco) ---------- */
   .login-screen{
@@ -382,6 +383,16 @@
   <div id="status"></div>
 
   <div id="warningsBox"></div>
+
+  <div class="clients-toolbar" id="resultsToolbar" style="display:none;">
+    <button class="pill-btn pill-ghost" id="btnToggleSelectRefs">Selecionar</button>
+    <div class="selection-actions" id="selectionActionsRefs" style="display:none;">
+      <button class="pill-btn pill-ghost" id="btnSelectAllRefs">Selecionar todas</button>
+      <button class="pill-btn pill-danger" id="btnDeleteSelectedRefs" disabled>Apagar selecionadas (0)</button>
+      <button class="pill-btn pill-ghost" id="btnCancelSelectRefs">Cancelar</button>
+    </div>
+  </div>
+
   <div class="results" id="results"></div>
 </div>
 </div>
@@ -621,6 +632,8 @@ document.getElementById('themeToggleClients').addEventListener('click', () => ap
 
 let selectedFiles = [];
 let poseStates = []; // {segmento, history:[], historyIndex}
+let refSelectMode = false;
+let selectedRefIndices = new Set();
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -715,6 +728,7 @@ const PHOTO_FIELD_ORDER = [
   ['calcado_qtd_fotos','calcado']
 ];
 const FECHAMENTO_FIXO = "Vestindo as roupas que enviei na referência, preservando todos os detalhes, como estampas, tecidos, bordados, cores, caimento, modelagem e etc. Ultra realista, Anatomia real, Iluminação de estúdio high-key ratio 1:2 com luz difusa suave, aparência limpa e uniforme, sombras leves e naturais, flash como luz principal ao lado direito do modelo a 45 graus. câmera Nikon Z8, lente 85mm, luz suave de cabelo a 45 graus, 1/2 fstop acima da luz principal. Fundo totalmente branco em ciclorama contínuo, sem elementos visíveis de estúdio. roupa perfeita no modelo, sem amassados.";
+const MAQUIAGEM_FEMININA = "Maquiagem natural de editorial de moda ('no-makeup makeup'), com acabamento realista, valorizando o tom de pele e as características individuais da modelo. Pele com textura natural preservada, levemente iluminada, sem efeito de porcelana. Sobrancelhas penteadas, olhos e lábios com acabamento suave, sem contornos marcados ou aspecto artificial.";
 
 function isSim(v){ if (typeof v === 'boolean') return v; return String(v).trim().toLowerCase() === 'sim'; }
 function descalcoGendered(genero){
@@ -786,6 +800,9 @@ function buildPrompt(ref){
     {text:poseLabel, hl:true, isPose:true},
     {text:FECHAMENTO_FIXO, hl:false}
   ];
+  if ((ref.genero || '').trim().toLowerCase() === 'menina' && KNOWN_GRADES.indexOf(grade) >= KNOWN_GRADES.indexOf('Infantil')){
+    segments.push({text: MAQUIAGEM_FEMININA, hl:false});
+  }
   return {codigo: ref.codigo, grade, genero: ref.genero, category, isExpressaoOnly, segments, notes};
 }
 
@@ -958,6 +975,10 @@ function showConflictModal(codes){
 }
 
 async function loadClientData(clientId){
+  refSelectMode = false;
+  selectedRefIndices = new Set();
+  document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
+  document.getElementById('selectionActionsRefs').style.display = 'none';
   document.getElementById('results').innerHTML = '';
   document.getElementById('warningsBox').innerHTML = '';
   document.getElementById('downloadDocxBtn').style.display = 'none';
@@ -1003,9 +1024,72 @@ async function loadClientData(clientId){
   if (window.__lastResults.some(r => r.hasPhotos)) document.getElementById('downloadZipBtn').style.display = 'inline-block';
 }
 
+// ================= Seleção múltipla e exclusão de referências =================
+function updateDeleteSelectedRefsLabel(){
+  const btn = document.getElementById('btnDeleteSelectedRefs');
+  btn.textContent = `Apagar selecionadas (${selectedRefIndices.size})`;
+  btn.disabled = selectedRefIndices.size === 0;
+}
+
+document.getElementById('btnToggleSelectRefs').addEventListener('click', () => {
+  refSelectMode = true;
+  selectedRefIndices.clear();
+  document.getElementById('btnToggleSelectRefs').style.display = 'none';
+  document.getElementById('selectionActionsRefs').style.display = 'flex';
+  renderResults(window.__lastResults || [], []);
+  wireAutosave();
+});
+document.getElementById('btnCancelSelectRefs').addEventListener('click', () => {
+  refSelectMode = false;
+  selectedRefIndices.clear();
+  document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
+  document.getElementById('selectionActionsRefs').style.display = 'none';
+  renderResults(window.__lastResults || [], []);
+  wireAutosave();
+});
+document.getElementById('btnSelectAllRefs').addEventListener('click', () => {
+  (window.__lastResults || []).forEach((_, i) => selectedRefIndices.add(i));
+  document.querySelectorAll('.ref-check').forEach(cb => { cb.checked = true; });
+  updateDeleteSelectedRefsLabel();
+});
+document.getElementById('btnDeleteSelectedRefs').addEventListener('click', () => {
+  if (!selectedRefIndices.size) return;
+  const n = selectedRefIndices.size;
+  showConfirm(`Apagar ${n} referência(s) selecionada(s)? Essa ação não pode ser desfeita.`, async () => {
+    const idxDesc = Array.from(selectedRefIndices).sort((a,b) => b - a); // maior pro menor, pra não bagunçar índices ao remover
+    const idsToDelete = idxDesc.map(i => window.__lastResults[i] && window.__lastResults[i].dbId).filter(Boolean);
+
+    if (idsToDelete.length){
+      const { error } = await sb.from('client_refs').delete().in('id', idsToDelete);
+      if (error){ alert('Erro ao apagar no banco: ' + error.message); return; }
+    }
+
+    idxDesc.forEach(i => {
+      window.__lastResults.splice(i, 1);
+      poseStates.splice(i, 1);
+    });
+
+    refSelectMode = false;
+    selectedRefIndices.clear();
+    document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
+    document.getElementById('selectionActionsRefs').style.display = 'none';
+    renderResults(window.__lastResults, []);
+    wireAutosave();
+
+    if (!window.__lastResults.length){
+      document.getElementById('downloadDocxBtn').style.display = 'none';
+      document.getElementById('downloadZipBtn').style.display = 'none';
+    }
+  });
+});
+
 
 // ================= Orquestração principal =================
 processBtn.addEventListener('click', async () => {
+  refSelectMode = false;
+  selectedRefIndices = new Set();
+  document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
+  document.getElementById('selectionActionsRefs').style.display = 'none';
   processBtn.disabled = true;
   document.getElementById('warningsBox').innerHTML = '';
   const statusEl = document.getElementById('status');
@@ -1099,10 +1183,13 @@ function renderResults(results, warnings){
     ? `<div class="warnings"><strong>Avisos:</strong>${warnings.map(w=>`<div>! ${w}</div>`).join('')}</div>`
     : '';
 
+  document.getElementById('resultsToolbar').style.display = results.length ? 'flex' : 'none';
+
   const resultsEl = document.getElementById('results');
   resultsEl.innerHTML = results.map((r, i) => `
-    <div class="card">
+    <div class="card" data-idx="${i}">
       <div class="card-head">
+        <input type="checkbox" class="ref-check" data-idx="${i}" style="display:${refSelectMode ? 'inline-block' : 'none'};" ${selectedRefIndices.has(i) ? 'checked' : ''}>
         <span class="code">Ref. ${r.codigo}</span>
         <span class="meta">${r.grade} · ${r.genero} · ${r.source}</span>
       </div>
@@ -1135,6 +1222,15 @@ function renderResults(results, warnings){
   `).join('');
 
   results.forEach((r, i) => { if (!r.isExpressaoOnly) renderSegmentoPills(i, r.category); });
+
+  resultsEl.querySelectorAll('.ref-check').forEach(cb => {
+    cb.addEventListener('click', e => e.stopPropagation());
+    cb.addEventListener('change', () => {
+      const idx = parseInt(cb.dataset.idx, 10);
+      if (cb.checked) selectedRefIndices.add(idx); else selectedRefIndices.delete(idx);
+      updateDeleteSelectedRefsLabel();
+    });
+  });
 }
 
 function renderSegmentoPills(i, category){
