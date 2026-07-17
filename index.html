@@ -1114,6 +1114,7 @@ function renderResults(results, warnings){
         <div class="pose-btn-row">
           <button class="pose-gen-btn" onclick="rollPose(${i})">Gerar</button>
           <button class="pose-use-btn" id="pose-use-${i}" disabled onclick="usePose(${i})">Inserir no prompt</button>
+          <button class="pose-use-btn" id="pose-undo-${i}" disabled onclick="undoPoseInsert(${i})" title="Volta pra pose que estava antes desta última inserção">↩️ Desfazer</button>
         </div>
       </div>
     </div>
@@ -1155,14 +1156,61 @@ function rollPose(i){
 function prevPose(i){ const st = poseStates[i]; if (st.historyIndex > 0){ st.historyIndex--; updatePoseNav(i); } }
 function nextPose(i){ const st = poseStates[i]; if (st.historyIndex < st.history.length - 1){ st.historyIndex++; updatePoseNav(i); } }
 
+function updateUndoButton(i){
+  const btn = document.getElementById(`pose-undo-${i}`);
+  if (!btn) return;
+  const st = poseStates[i];
+  btn.disabled = !(st && st.undoStack && st.undoStack.length);
+}
+
 function usePose(i){
   const box = document.getElementById(`prompt-${i}`);
-  const slot = box.querySelector('[data-pose-slot]');
   const text = poseStates[i].history[poseStates[i].historyIndex];
-  if (slot && text){
-    slot.replaceWith(document.createTextNode(text));
+  if (!text) return;
+
+  if (!poseStates[i].undoStack) poseStates[i].undoStack = [];
+
+  const firstTimeSlot = box.querySelector('[data-pose-slot]');
+  if (firstTimeSlot){
+    // primeira vez: guarda o placeholder original pra poder desfazer até ele
+    poseStates[i].undoStack.push({ wasPlaceholder: true, text: firstTimeSlot.textContent });
+    firstTimeSlot.removeAttribute('data-pose-slot');
+    firstTimeSlot.setAttribute('data-pose-value', '1');
+    firstTimeSlot.classList.remove('hl');
+    firstTimeSlot.textContent = text;
+  } else {
+    const existingSlot = box.querySelector('[data-pose-value]');
+    if (existingSlot){
+      poseStates[i].undoStack.push({ wasPlaceholder: false, text: existingSlot.textContent });
+      existingSlot.textContent = text;
+    } else {
+      console.warn('Não encontrei onde inserir a pose (talvez o marcador tenha sido apagado manualmente no texto).');
+      return;
+    }
   }
+
   document.getElementById(`pose-panel-${i}`).classList.remove('open');
+  updateUndoButton(i);
+  saveCardPrompt(i);
+}
+
+function undoPoseInsert(i){
+  const st = poseStates[i];
+  if (!st || !st.undoStack || !st.undoStack.length) return;
+  const last = st.undoStack.pop();
+  const box = document.getElementById(`prompt-${i}`);
+  const valueSlot = box.querySelector('[data-pose-value]');
+  if (!valueSlot){ console.warn('Não achei o marcador da pose pra desfazer.'); return; }
+
+  if (last.wasPlaceholder){
+    valueSlot.removeAttribute('data-pose-value');
+    valueSlot.setAttribute('data-pose-slot', '1');
+    valueSlot.classList.add('hl');
+    valueSlot.textContent = last.text;
+  } else {
+    valueSlot.textContent = last.text;
+  }
+  updateUndoButton(i);
   saveCardPrompt(i);
 }
 function copyPrompt(i){
