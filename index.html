@@ -122,23 +122,74 @@
   .pass-toggle svg{width:19px; height:19px;}
   .login-error{color:#b3392f; font-size:12.5px; margin:6px 0 4px; min-height:16px;}
 
-  /* ---------- tela de clientes ---------- */
-  .clients-screen{min-height:100vh; padding:32px 20px 80px; background:var(--bg);}
-  .clients-wrap{max-width:640px; margin:0 auto;}
-  .clients-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; gap:10px; flex-wrap:wrap;}
-  .add-client-form{display:flex; gap:8px; margin-bottom:22px;}
+  /* ---------- tela de clientes: mono preto/branco/cinza, estilo pill ---------- */
+  :root{ --mono-btn-bg:#17181a; --mono-btn-text:#ffffff; --mono-danger:#b3392f; --mono-danger-soft:#fbe9e7; }
+  [data-theme="dark"]{ --mono-btn-bg:#f2f1ec; --mono-btn-text:#17181a; --mono-danger:#e0857a; --mono-danger-soft:#3a2320; }
+
+  .clients-screen{min-height:100vh; padding:40px 20px 80px; background:var(--bg);}
+  .clients-wrap{max-width:680px; margin:0 auto;}
+  .clients-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; gap:10px; flex-wrap:wrap;}
+  .header-actions{display:flex; gap:8px;}
+
+  .pill-btn{
+    font-family:inherit; font-size:13.5px; font-weight:700; border-radius:999px;
+    padding:10px 20px; cursor:pointer; border:1.5px solid transparent; transition:.15s;
+    display:inline-flex; align-items:center; gap:6px; white-space:nowrap;
+  }
+  .pill-solid{background:var(--mono-btn-bg); color:var(--mono-btn-text);}
+  .pill-solid:hover{opacity:.85; transform:translateY(-1px);}
+  .pill-ghost{background:transparent; color:var(--ink); border-color:var(--line);}
+  .pill-ghost:hover{border-color:var(--ink); background:var(--card);}
+  .pill-danger{background:var(--mono-danger-soft); color:var(--mono-danger); border-color:transparent;}
+  .pill-danger:hover{opacity:.85;}
+  .pill-btn:disabled{opacity:.4; cursor:not-allowed;}
+
+  .add-client-form{display:flex; gap:10px; margin-bottom:18px;}
   .add-client-form input{
-    flex:1; font-family:inherit; font-size:14px; padding:10px 13px;
-    border:1px solid var(--line); border-radius:10px; background:var(--card); color:var(--ink);
+    flex:1; font-family:inherit; font-size:14.5px; padding:13px 18px;
+    border:1.5px solid var(--line); border-radius:999px; background:var(--card); color:var(--ink);
   }
+  .add-client-form input:focus{outline:none; border-color:var(--ink);}
+
+  .clients-toolbar{display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .selection-actions{display:flex; gap:8px; flex-wrap:wrap;}
+
   .client-row{
-    display:flex; align-items:center; justify-content:space-between;
-    background:var(--card); border:1px solid var(--line); border-radius:14px;
-    padding:16px 18px; margin-bottom:10px; cursor:pointer; transition:.15s;
+    display:flex; align-items:center; gap:14px;
+    background:var(--card); border:1.5px solid var(--line); border-radius:18px;
+    padding:18px 20px; margin-bottom:12px; cursor:pointer;
+    transition:transform .15s, box-shadow .15s, border-color .15s;
   }
-  .client-row:hover{border-color:var(--accent); background:var(--accent-soft);}
-  .client-row .name{font-weight:700; font-family:'Manrope',sans-serif; font-size:15px;}
-  .client-row .date{font-size:12px; color:var(--muted);}
+  .client-row:hover{border-color:var(--ink); box-shadow:0 10px 26px rgba(0,0,0,.07); transform:translateY(-2px);}
+  .client-row .row-check{width:18px; height:18px; accent-color:var(--mono-btn-bg); display:none; flex-shrink:0;}
+  .client-row.select-mode .row-check{display:block;}
+  .client-row .name{
+    font-weight:700; font-family:'Manrope',sans-serif; font-size:15.5px; flex:1;
+    background:transparent; border:none; color:var(--ink); font-family:inherit;
+  }
+  .client-row .name-input{
+    font-weight:700; font-family:'Manrope',sans-serif; font-size:15.5px; flex:1;
+    border:1.5px solid var(--ink); border-radius:8px; padding:4px 8px; background:var(--bg); color:var(--ink);
+  }
+  .client-row .row-right{display:flex; align-items:center; gap:6px;}
+  .client-row .date{font-size:12px; color:var(--muted); margin-right:4px; white-space:nowrap;}
+  .icon-btn{
+    background:none; border:none; font-size:15px; padding:6px 8px; border-radius:8px;
+    cursor:pointer; opacity:0; transition:opacity .15s, background .15s;
+  }
+  .client-row:hover .icon-btn{opacity:.75;}
+  .icon-btn:hover{opacity:1 !important; background:var(--bg);}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.45); display:flex;
+    align-items:center; justify-content:center; z-index:50; padding:20px;
+  }
+  .modal-card{
+    background:var(--card); border-radius:18px; padding:26px 24px; max-width:340px; width:100%;
+    text-align:center; box-shadow:0 30px 70px rgba(0,0,0,.3);
+  }
+  .modal-card p{font-size:14.5px; margin:0 0 20px; color:var(--ink);}
+  .modal-actions{display:flex; gap:10px; justify-content:center;}
   #clientName[readonly]{background:var(--accent-soft); cursor:not-allowed;}
   .actions{margin-top:18px; display:flex; gap:10px; flex-wrap:wrap;}
   button{font-family:inherit; font-size:14px; font-weight:600; border:none; border-radius:10px; padding:11px 18px; cursor:pointer; transition:.15s;}
@@ -226,13 +277,37 @@
         <img id="logoImgClients" src="" alt="AI Creative Studio" style="height:30px;">
         <div class="brand-text"><h1>Clientes</h1><p>Selecione um já produzido ou adicione um novo</p></div>
       </div>
-      <button class="btn-ghost" id="btnLogout">Sair</button>
+      <div class="header-actions">
+        <button class="pill-btn pill-ghost" id="themeToggleClients">🌙 Escuro</button>
+        <button class="pill-btn pill-ghost" id="btnLogout">Sair</button>
+      </div>
     </div>
+
     <div class="add-client-form">
       <input type="text" id="newClientName" placeholder="Nome do novo cliente">
-      <button class="btn-primary" id="btnAddClient">Adicionar</button>
+      <button class="pill-btn pill-solid" id="btnAddClient">Adicionar</button>
     </div>
+
+    <div class="clients-toolbar">
+      <button class="pill-btn pill-ghost" id="btnToggleSelect">Selecionar</button>
+      <div class="selection-actions" id="selectionActions" style="display:none;">
+        <button class="pill-btn pill-ghost" id="btnSelectAll">Selecionar todas</button>
+        <button class="pill-btn pill-danger" id="btnDeleteSelected" disabled>Apagar selecionadas (0)</button>
+        <button class="pill-btn pill-ghost" id="btnCancelSelect">Cancelar</button>
+      </div>
+    </div>
+
     <div id="clientsList"></div>
+  </div>
+</div>
+
+<div id="confirmModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card">
+    <p id="confirmModalText">Apagar este cliente?</p>
+    <div class="modal-actions">
+      <button class="pill-btn pill-danger" id="btnConfirmYes">Sim, apagar</button>
+      <button class="pill-btn pill-ghost" id="btnConfirmNo">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -349,22 +424,133 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
 });
 document.getElementById('btnBackToClients').addEventListener('click', showClientsScreen);
 
+let selectMode = false;
+let selectedIds = new Set();
+
+function showConfirm(message, onConfirm){
+  const modal = document.getElementById('confirmModal');
+  document.getElementById('confirmModalText').textContent = message;
+  modal.style.display = 'flex';
+  const yesBtn = document.getElementById('btnConfirmYes');
+  const noBtn = document.getElementById('btnConfirmNo');
+  const cleanup = () => { modal.style.display = 'none'; yesBtn.onclick = null; noBtn.onclick = null; };
+  yesBtn.onclick = () => { cleanup(); onConfirm(); };
+  noBtn.onclick = cleanup;
+}
+
 async function loadClients(){
   const listEl = document.getElementById('clientsList');
   listEl.innerHTML = '<p style="color:var(--muted); font-size:13px;">Carregando...</p>';
   const { data, error } = await sb.from('clientes').select('*').order('created_at', {ascending:false});
   if (error){ listEl.innerHTML = `<p style="color:var(--warn); font-size:13px;">Erro ao carregar clientes: ${error.message}</p>`; return; }
   if (!data || !data.length){ listEl.innerHTML = '<p style="color:var(--muted); font-size:13px;">Nenhum cliente ainda — adicione um acima.</p>'; return; }
+
   listEl.innerHTML = data.map(c => `
-    <div class="client-row" data-nome="${c.nome.replace(/"/g,'&quot;')}">
+    <div class="client-row ${selectMode ? 'select-mode' : ''}" data-id="${c.id}" data-nome="${c.nome.replace(/"/g,'&quot;')}">
+      <input type="checkbox" class="row-check" ${selectedIds.has(c.id) ? 'checked' : ''}>
       <span class="name">${c.nome}</span>
-      <span class="date">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
+      <div class="row-right">
+        <span class="date">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
+        <button class="icon-btn edit-btn" title="Editar nome">✏️</button>
+        <button class="icon-btn delete-btn" title="Apagar">🗑️</button>
+      </div>
     </div>
   `).join('');
+
   listEl.querySelectorAll('.client-row').forEach(row => {
-    row.addEventListener('click', () => showAppScreen(row.dataset.nome));
+    const id = row.dataset.id;
+
+    row.addEventListener('click', (e) => {
+      if (e.target.closest('.edit-btn') || e.target.closest('.delete-btn') || e.target.closest('.name-input')) return;
+      if (selectMode){
+        if (e.target.classList.contains('row-check')){
+          toggleSelected(id, e.target.checked);
+        } else {
+          const cb = row.querySelector('.row-check');
+          cb.checked = !cb.checked;
+          toggleSelected(id, cb.checked);
+        }
+        return;
+      }
+      showAppScreen(row.dataset.nome);
+    });
+
+    row.querySelector('.delete-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      showConfirm(`Apagar o cliente "${row.dataset.nome}"?`, async () => {
+        const { error } = await sb.from('clientes').delete().eq('id', id);
+        if (error){ alert('Erro ao apagar: ' + error.message); return; }
+        loadClients();
+      });
+    });
+
+    row.querySelector('.edit-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const nameSpan = row.querySelector('.name');
+      const current = row.dataset.nome;
+      const input = document.createElement('input');
+      input.type = 'text'; input.value = current; input.className = 'name-input';
+      nameSpan.replaceWith(input);
+      input.focus(); input.select();
+
+      const save = async () => {
+        const novoNome = input.value.trim();
+        if (!novoNome || novoNome === current){ loadClients(); return; }
+        const { error } = await sb.from('clientes').update({ nome: novoNome }).eq('id', id);
+        if (error){ alert('Erro ao renomear: ' + error.message); return; }
+        loadClients();
+      };
+      input.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter') save();
+        if (ev.key === 'Escape') loadClients();
+      });
+      input.addEventListener('blur', save);
+    });
   });
+
+  updateDeleteSelectedLabel();
 }
+
+function toggleSelected(id, checked){
+  if (checked) selectedIds.add(id); else selectedIds.delete(id);
+  updateDeleteSelectedLabel();
+}
+function updateDeleteSelectedLabel(){
+  const btn = document.getElementById('btnDeleteSelected');
+  btn.textContent = `Apagar selecionadas (${selectedIds.size})`;
+  btn.disabled = selectedIds.size === 0;
+}
+
+document.getElementById('btnToggleSelect').addEventListener('click', () => {
+  selectMode = true; selectedIds.clear();
+  document.getElementById('btnToggleSelect').style.display = 'none';
+  document.getElementById('selectionActions').style.display = 'flex';
+  loadClients();
+});
+document.getElementById('btnCancelSelect').addEventListener('click', () => {
+  selectMode = false; selectedIds.clear();
+  document.getElementById('btnToggleSelect').style.display = 'inline-flex';
+  document.getElementById('selectionActions').style.display = 'none';
+  loadClients();
+});
+document.getElementById('btnSelectAll').addEventListener('click', () => {
+  document.querySelectorAll('.client-row').forEach(row => {
+    row.querySelector('.row-check').checked = true;
+    selectedIds.add(row.dataset.id);
+  });
+  updateDeleteSelectedLabel();
+});
+document.getElementById('btnDeleteSelected').addEventListener('click', () => {
+  if (!selectedIds.size) return;
+  showConfirm(`Apagar ${selectedIds.size} cliente(s) selecionado(s)?`, async () => {
+    const { error } = await sb.from('clientes').delete().in('id', Array.from(selectedIds));
+    if (error){ alert('Erro ao apagar: ' + error.message); return; }
+    selectMode = false; selectedIds.clear();
+    document.getElementById('btnToggleSelect').style.display = 'inline-flex';
+    document.getElementById('selectionActions').style.display = 'none';
+    loadClients();
+  });
+});
 
 document.getElementById('btnAddClient').addEventListener('click', async () => {
   const input = document.getElementById('newClientName');
@@ -387,15 +573,19 @@ function applyTheme(theme){
   document.body.dataset.theme = theme;
   const src = theme === 'dark' ? LOGO_WHITE : LOGO_BLACK;
   logoImg.src = src;
-  document.getElementById('logoImgClients').src = LOGO_BLACK; // tela de clientes é sempre clara
+  document.getElementById('logoImgClients').src = src;
   document.getElementById('loginLogo').src = LOGO_BLACK; // login é sempre fundo branco
-  themeToggle.textContent = theme === 'dark' ? '☀️ Claro' : '🌙 Escuro';
+  const label = theme === 'dark' ? '☀️ Claro' : '🌙 Escuro';
+  themeToggle.textContent = label;
+  const themeToggleClients = document.getElementById('themeToggleClients');
+  if (themeToggleClients) themeToggleClients.textContent = label;
   try{ localStorage.setItem('lookbook_theme', theme); }catch(e){}
 }
 let savedTheme = 'light';
 try{ savedTheme = localStorage.getItem('lookbook_theme') || 'light'; }catch(e){}
 applyTheme(savedTheme);
 themeToggle.addEventListener('click', () => applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'));
+document.getElementById('themeToggleClients').addEventListener('click', () => applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'));
 
 let selectedFiles = [];
 let poseStates = []; // {segmento, history:[], historyIndex}
