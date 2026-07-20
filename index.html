@@ -1501,6 +1501,22 @@ async function getAllClientPdfFiles(){
   return files.length ? files : selectedFiles;
 }
 
+const LABEL_DISPLAY = {
+  acessorio_cabeca: 'AcessorioCabeca',
+  brinco: 'Brinco',
+  parte_cima: 'ParteCima',
+  parte_baixo: 'ParteBaixo',
+  cinto: 'Cinto',
+  acessorio_braco: 'AcessorioBraco',
+  calcado: 'Calcado'
+};
+function displayLabel(label){
+  if (LABEL_DISPLAY[label]) return LABEL_DISPLAY[label];
+  const m = label.match(/^foto_extra_(\d+)$/);
+  if (m) return `FotoExtra${m[1]}`;
+  return label.charAt(0).toUpperCase() + label.slice(1);
+}
+
 document.getElementById('downloadZipBtn').addEventListener('click', async () => {
   const btn = document.getElementById('downloadZipBtn');
   const statusEl = document.getElementById('status');
@@ -1520,7 +1536,8 @@ document.getElementById('downloadZipBtn').addEventListener('click', async () => 
     });
 
     const zip = new JSZip();
-    const usedFolderNames = new Set();
+    const todasFolder = zip.folder('Todas');
+    const usedFileNames = new Set();
     let totalSaved = 0;
 
     (window.__lastResults || []).forEach(r => {
@@ -1528,24 +1545,20 @@ document.getElementById('downloadZipBtn').addEventListener('click', async () => 
       const imgs = byFileRef[key];
       if (!imgs || !imgs.length) return;
 
-      let folderName = r.codigo;
-      let n = 2;
-      while (usedFolderNames.has(folderName)){ folderName = `${r.codigo}_${n}`; n++; }
-      usedFolderNames.add(folderName);
-
       const expectedLabels = [];
       PHOTO_FIELD_ORDER.forEach(([qtyKey, label]) => {
         const qty = r.raw[qtyKey] || 0;
         for (let k = 0; k < qty; k++) expectedLabels.push(label);
       });
 
-      const labelCounts = {};
-      const folder = zip.folder(folderName);
       imgs.forEach((img, idx) => {
         const label = expectedLabels[idx] || `foto_extra_${idx+1}`;
-        labelCounts[label] = (labelCounts[label]||0) + 1;
-        const suffix = labelCounts[label] > 1 ? `_${labelCounts[label]}` : '';
-        folder.file(`${label}${suffix}.png`, img.dataUrl.split(',')[1], {base64:true});
+        let fileName = `${r.codigo}_${displayLabel(label)}`;
+        let finalName = `${fileName}.png`;
+        let n = 2;
+        while (usedFileNames.has(finalName)){ finalName = `${fileName}_${n}.png`; n++; }
+        usedFileNames.add(finalName);
+        todasFolder.file(finalName, img.dataUrl.split(',')[1], {base64:true});
         totalSaved++;
       });
     });
@@ -1562,7 +1575,7 @@ document.getElementById('downloadZipBtn').addEventListener('click', async () => 
     a.href = url; a.download = `${getClientFileBase()}_fotos.zip`;
     a.click();
     URL.revokeObjectURL(url);
-    statusEl.textContent = `${totalSaved} foto(s) baixada(s) em ${usedFolderNames.size} pasta(s).`;
+    statusEl.textContent = `${totalSaved} foto(s) baixada(s) na pasta "Todas".`;
   }catch(err){
     statusEl.textContent = `Erro ao extrair imagens: ${err.message}`;
   }
