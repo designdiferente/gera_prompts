@@ -379,6 +379,7 @@
     <button class="btn-primary" id="processBtn" disabled>Gerar prompts</button>
     <button class="btn-ghost" id="downloadDocxBtn" style="display:none;">Baixar tudo (.docx)</button>
     <button class="btn-ghost" id="downloadZipBtn" style="display:none;">Baixar fotos (.zip)</button>
+    <button class="btn-ghost" id="downloadRawImagesBtn">Extrair imagens dos PDFs (.zip)</button>
   </div>
   <div id="status"></div>
 
@@ -631,6 +632,15 @@ themeToggle.addEventListener('click', () => applyTheme(document.body.dataset.the
 document.getElementById('themeToggleClients').addEventListener('click', () => applyTheme(document.body.dataset.theme === 'dark' ? 'light' : 'dark'));
 
 let selectedFiles = [];
+// mantém os PDFs já processados nesta sessão, mesmo depois que "Gerar prompts"
+// esvazia o selectedFiles — assim "Baixar fotos" continua tendo os arquivos
+// disponíveis pra extrair imagem, mesmo depois de gerar os prompts.
+let processedPdfFiles = [];
+function rememberProcessedFiles(files){
+  files.forEach(f => {
+    if (!processedPdfFiles.some(pf => pf.name === f.name && pf.size === f.size)) processedPdfFiles.push(f);
+  });
+}
 let poseStates = []; // {segmento, history:[], historyIndex}
 let refSelectMode = false;
 let selectedRefIndices = new Set();
@@ -953,7 +963,7 @@ function renderSavedPdfsList(pdfs){
 async function uploadPdfsToStorage(files, clientId){
   for (const file of files){
     const path = `${clientId}/${Date.now()}_${file.name}`;
-    const { error: upErr } = await sb.storage.from('lookbook-pdfs').upload(path, file, { upsert: false });
+    const { error: upErr } = await sb.storage.from('fichas-pdfs').upload(path, file, { upsert: false });
     if (upErr){ console.warn('Falha ao subir PDF pro Storage:', file.name, upErr); continue; }
     const { error: rowErr } = await sb.from('client_pdfs').insert({ cliente_id: clientId, file_name: file.name, storage_path: path });
     if (rowErr) console.warn('Falha ao registrar PDF salvo:', file.name, rowErr);
@@ -984,7 +994,7 @@ async function loadClientData(clientId){
   document.getElementById('downloadDocxBtn').style.display = 'none';
   document.getElementById('downloadZipBtn').style.display = 'none';
   document.getElementById('status').textContent = 'Carregando dados salvos...';
-  selectedFiles = []; renderFileChips();
+  selectedFiles = []; processedPdfFiles = []; renderFileChips();
 
   const [refsResp, pdfsResp] = await Promise.all([
     sb.from('client_refs').select('*').eq('cliente_id', clientId).order('created_at', {ascending:true}),
@@ -1170,6 +1180,7 @@ processBtn.addEventListener('click', async () => {
   }
   wireAutosave();
 
+  rememberProcessedFiles(selectedFiles);
   selectedFiles = []; renderFileChips();
   statusEl.textContent = `${mergedResults.length} referência(s) no total.`;
   processBtn.disabled = false;
@@ -1459,16 +1470,19 @@ async function extractAllImages(files, onProgress){
       const content = await page.getTextContent();
       pageTexts.push(content.items.map(it => it.str).join(''));
     }
-let current = null;
-const refMap = {};
-pageTexts.forEach((t, idx) => {
-  const {parsed} = findJsonBlocks(t);
-  if (parsed.length){
-    const ref = parsed[parsed.length - 1];
-    if (ref && ref.codigo) current = ref.codigo;
-  }
-  refMap[idx+1] = current;
-});
+    let current = null;
+    const refMap = {};
+    pageTexts.forEach((t, idx) => {
+      // usa o mesmo mecanismo confiável de extração de JSON já usado pros prompts,
+      // em vez de caçar o texto visível "Ref. XXXX" (que quebra quando o pdf.js
+      // junta os fragmentos de texto sem espaço, colando o código no texto seguinte)
+      const {parsed} = findJsonBlocks(t);
+      if (parsed.length){
+        const ref = parsed[parsed.length - 1]; // último bloco JSON da página, se houver mais de um
+        if (ref && ref.codigo) current = ref.codigo;
+      }
+      refMap[idx+1] = current;
+    });
     pageRefMaps[file.name] = refMap;
 
     for (let p = 1; p <= pdf.numPages; p++){
@@ -1479,12 +1493,18 @@ pageTexts.forEach((t, idx) => {
     }
   }
 
-  // descarta imagens decorativas (logo/rodapé repetido): mesmo conteúdo em 2+ lugares
+  // descarta imagens decorativas (logo/rodapé repetido em 3+ páginas diferentes).
+  // Antes qualquer repetição (mesmo 2x na MESMA página, ex: miniatura + foto grande
+  // da mesma referência) já era descartada, apagando fotos reais do cliente.
   const dataUrls = allImages.map(img => img.canvas.toDataURL('image/png'));
-  const counts = {};
-  dataUrls.forEach(d => { counts[d] = (counts[d]||0) + 1; });
-  const uniqueImages = allImages.filter((img,i) => counts[dataUrls[i]] === 1)
-    .map((img,i) => ({...img}));
+  const pagesPerDataUrl = {};
+  allImages.forEach((img, i) => {
+    const pageKey = `${img.sourceFile}::${img.page}`;
+    (pagesPerDataUrl[dataUrls[i]] = pagesPerDataUrl[dataUrls[i]] || new Set()).add(pageKey);
+  });
+  const DECORATIVE_MIN_PAGES = 3;
+  const uniqueImages = allImages.filter((img,i) => pagesPerDataUrl[dataUrls[i]].size < DECORATIVE_MIN_PAGES)
+    .map((img) => ({...img}));
   // recalcula dataUrl só das únicas (mantendo alinhado por referência do objeto)
   uniqueImages.forEach(img => { img.dataUrl = img.canvas.toDataURL('image/png'); });
 
@@ -1492,17 +1512,83 @@ pageTexts.forEach((t, idx) => {
 }
 
 async function getAllClientPdfFiles(){
-  if (!window.__currentClient) return selectedFiles;
+  const localFallback = () => {
+    // combina o que ainda está no dropzone com o que já foi processado nesta sessão
+    const combined = [...selectedFiles];
+    processedPdfFiles.forEach(f => { if (!combined.some(sf => sf.name === f.name && sf.size === f.size)) combined.push(f); });
+    return combined;
+  };
+  if (!window.__currentClient) return localFallback();
   const { data: pdfRows, error } = await sb.from('client_pdfs').select('*').eq('cliente_id', window.__currentClient.id);
-  if (error || !pdfRows || !pdfRows.length) return selectedFiles;
+  if (error || !pdfRows || !pdfRows.length) return localFallback();
   const files = [];
   for (const row of pdfRows){
     const { data, error: dlErr } = await sb.storage.from('fichas-pdfs').download(row.storage_path);
     if (dlErr){ console.warn('Falha ao baixar PDF salvo do Storage', row.file_name, dlErr); continue; }
     files.push(new File([data], row.file_name, { type: 'application/pdf' }));
   }
-  return files.length ? files : selectedFiles;
+  return files.length ? files : localFallback();
 }
+
+// ================= Extração BRUTA de imagens (sem casar com referência/código) =================
+// Equivalente a "Salvar imagem como..." do Acrobat em cada imagem embutida do PDF:
+// pega o objeto de imagem nativo decodificado pelo pdf.js, na resolução e proporção
+// originais, sem recorte, sem filtro de "decorativa/duplicada" e sem depender do
+// JSON da ficha. Organiza em uma pasta por PDF, numerada por página.
+document.getElementById('downloadRawImagesBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('downloadRawImagesBtn');
+  const statusEl = document.getElementById('status');
+  btn.disabled = true;
+  statusEl.textContent = 'Extraindo todas as imagens dos PDFs...';
+
+  try{
+    const files = await getAllClientPdfFiles();
+    if (!files.length){
+      statusEl.textContent = 'Nenhum PDF carregado ainda. Escolha um PDF acima primeiro.';
+      btn.disabled = false;
+      return;
+    }
+
+    const zip = new JSZip();
+    let total = 0;
+
+    for (const file of files){
+      const baseName = sanitizeForFilename(file.name.replace(/\.pdf$/i, ''));
+      const folder = zip.folder(baseName);
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+
+      for (let p = 1; p <= pdf.numPages; p++){
+        statusEl.textContent = `Extraindo imagens — ${file.name} (página ${p}/${pdf.numPages})...`;
+        const page = await pdf.getPage(p);
+        const imgs = await extractImagesFromPage(page, p);
+        imgs.forEach((img, idx) => {
+          const dataUrl = img.canvas.toDataURL('image/png');
+          const fileName = `pagina_${String(p).padStart(3, '0')}_img_${idx + 1}.png`;
+          folder.file(fileName, dataUrl.split(',')[1], {base64: true});
+          total++;
+        });
+      }
+    }
+
+    if (total === 0){
+      statusEl.textContent = 'Nenhuma imagem embutida foi encontrada nos PDFs.';
+      btn.disabled = false;
+      return;
+    }
+
+    const blob = await zip.generateAsync({type: 'blob'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `${getClientFileBase()}_imagens_brutas.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    statusEl.textContent = `${total} imagem(ns) extraída(s) na resolução original, sem filtro.`;
+  }catch(err){
+    statusEl.textContent = `Erro ao extrair imagens: ${err.message}`;
+  }
+  btn.disabled = false;
+});
 
 const LABEL_DISPLAY = {
   acessorio_cabeca: 'AcessorioCabeca',
