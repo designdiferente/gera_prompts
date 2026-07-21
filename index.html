@@ -1497,7 +1497,7 @@ async function getAllClientPdfFiles(){
   if (error || !pdfRows || !pdfRows.length) return selectedFiles;
   const files = [];
   for (const row of pdfRows){
-    const { data, error: dlErr } = await sb.storage.from('lookbook-pdfs').download(row.storage_path);
+    const { data, error: dlErr } = await sb.storage.from('fichas-pdfs').download(row.storage_path);
     if (dlErr){ console.warn('Falha ao baixar PDF salvo do Storage', row.file_name, dlErr); continue; }
     files.push(new File([data], row.file_name, { type: 'application/pdf' }));
   }
