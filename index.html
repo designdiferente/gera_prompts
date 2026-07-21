@@ -1459,13 +1459,16 @@ async function extractAllImages(files, onProgress){
       const content = await page.getTextContent();
       pageTexts.push(content.items.map(it => it.str).join(''));
     }
-    let current = null;
-    const refMap = {};
-    pageTexts.forEach((t, idx) => {
-      const m = t.match(/Ref\.\s*(\S+)/);
-      if (m) current = m[1];
-      refMap[idx+1] = current;
-    });
+let current = null;
+const refMap = {};
+pageTexts.forEach((t, idx) => {
+  const {parsed} = findJsonBlocks(t);
+  if (parsed.length){
+    const ref = parsed[parsed.length - 1];
+    if (ref && ref.codigo) current = ref.codigo;
+  }
+  refMap[idx+1] = current;
+});
     pageRefMaps[file.name] = refMap;
 
     for (let p = 1; p <= pdf.numPages; p++){
