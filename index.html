@@ -232,6 +232,10 @@
     background:var(--hl-bg); color:var(--hl-ink); font-weight:700;
     padding:1px 4px; border-radius:4px;
   }
+  .prompt-box strong.hl-green{
+    background:#d4f4dd; color:#166534; font-weight:700;
+    padding:1px 4px; border-radius:4px;
+  }
   .card-actions{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;}
   .copy-btn{font-size:12.5px; padding:7px 13px; background:var(--accent-soft); color:var(--accent); border-radius:8px;}
   .copy-btn:hover{filter:brightness(0.97);}
@@ -379,7 +383,6 @@
     <button class="btn-primary" id="processBtn" disabled>Gerar prompts</button>
     <button class="btn-ghost" id="downloadDocxBtn" style="display:none;">Baixar tudo (.docx)</button>
     <button class="btn-ghost" id="downloadZipBtn" style="display:none;">Baixar fotos (.zip)</button>
-    <button class="btn-ghost" id="downloadRawImagesBtn">Extrair imagens dos PDFs (.zip)</button>
   </div>
   <div id="status"></div>
 
@@ -694,6 +697,48 @@ function findJsonBlocks(text){
   }
   return {parsed, warnings};
 }
+
+// Lista canônica dos campos do JSON oculto da ficha, na ordem em que o app
+// espera usá-los (não necessariamente a ordem em que aparecem no PDF).
+const REF_FIELD_SPEC = [
+  ['_id','str'], ['codigo','str'], ['variante','str'], ['genero','str'], ['grade','str'],
+  ['foto_conceito','bool'],
+  ['cabeca_acessorio_tem','str'], ['cabeca_acessorio_txt','str'], ['cabeca_acessorio_qtd_fotos','num'],
+  ['brinco_tem','str'], ['brinco_txt','str'], ['brinco_qtd_fotos','num'],
+  ['parte_cima_tem','str'], ['parte_cima_txt','str'], ['parte_cima_qtd_fotos','num'],
+  ['parte_baixo_tem','str'], ['parte_baixo_txt','str'], ['parte_baixo_qtd_fotos','num'],
+  ['cinto_tem','str'], ['cinto_txt','str'], ['cinto_qtd_fotos','num'],
+  ['braco_acessorio_tem','str'], ['braco_acessorio_txt','str'], ['braco_acessorio_qtd_fotos','num'],
+  ['cadarco','str'], ['cadarco_estilo','str'], ['por_dentro','str'], ['mao_bolso','str'], ['foto_costas','str'],
+  ['comprimento_especificar','str'], ['comprimento_txt','str'],
+  ['calcado_usa','str'], ['calcado_txt','str'], ['calcado_qtd_fotos','num'],
+  ['obs','str']
+];
+function extractFieldValue(text, field, type){
+  let re;
+  if (type === 'bool') re = new RegExp(`"${field}"\\s*:\\s*(true|false)`);
+  else if (type === 'num') re = new RegExp(`"${field}"\\s*:\\s*(\\d+)`);
+  else re = new RegExp(`"${field}"\\s*:\\s*"([^"]*)"`);
+  const m = text.match(re);
+  if (!m) return type === 'num' ? 0 : (type === 'bool' ? false : '');
+  if (type === 'bool') return m[1] === 'true';
+  if (type === 'num') return parseInt(m[1], 10);
+  return m[1];
+}
+// Faz o parse de UMA referência a partir do texto de UMA página. Primeiro tenta
+// o caminho normal (bloco JSON contíguo + JSON.parse). Se isso falhar — o que
+// acontece quando o pdf.js extrai os pedaços do JSON oculto FORA DE ORDEM,
+// deixando o bloco tecnicamente inválido — cai no fallback campo a campo por
+// regex, que não depende de ordem nenhuma, só do par chave-valor estar intacto.
+function parseRefFromPageText(pageText){
+  const {parsed} = findJsonBlocks(pageText);
+  if (parsed.length) return parsed[parsed.length - 1];
+  if (!/"_id"\s*:/.test(pageText)) return null; // esta página não tem nenhuma ficha
+  const ref = {};
+  REF_FIELD_SPEC.forEach(([field, type]) => { ref[field] = extractFieldValue(pageText, field, type); });
+  return ref;
+}
+
 const KNOWN_GRADES = ["RN","Bebê","Primeiros Passos","Infantil","Juvenil","Teen","Adulto","Plus Size"];
 const KNOWN_CADARCO = ["solto","laço","nó simples"];
 function fixKnownCompound(value, knownList){
@@ -759,7 +804,7 @@ function accessorySegment(ref, temKey, txtKey, qtdKey, textTemplate, fotoLabel, 
 
 function buildFichaSegments(ref){
   const segs = []; const notes = [];
-  const push = (s) => { if (s){ if (s.note) notes.push(s.note); segs.push({text:s.text, hl:!!s.hl}); } };
+  const push = (s) => { if (s){ if (s.note) notes.push(s.note); segs.push({text:s.text, hl:!!s.hl, hlColor:s.hlColor}); } };
 
   push(accessorySegment(ref,'cabeca_acessorio_tem','cabeca_acessorio_txt','cabeca_acessorio_qtd_fotos',
     'Na cabeça, terá o acessório {txt}.', 'o acessório de cabeça', 'o acessório de cabeça', 'Acessório de cabeça'));
@@ -769,6 +814,7 @@ function buildFichaSegments(ref){
   if (isSim(ref.parte_cima_tem)) segs.push({text:'Na parte de cima, seguir a peça da foto de referência.', hl:false});
   if (isSim(ref.cadarco)) segs.push({text:`Na cintura, o cadarço aparece em forma de ${(ref.cadarco_estilo||'').trim()}.`, hl:false});
   if (isSim(ref.por_dentro)) segs.push({text:'A parte de cima por dentro da parte de baixo.', hl:false});
+  if (isSim(ref.mao_bolso)) segs.push({text:'uma das mãos no bolso.', hl:true, hlColor:'green'});
 
   push(accessorySegment(ref,'cinto_tem','cinto_txt','cinto_qtd_fotos',
     'Tem cinto do modelo {txt}.', 'o cinto', 'o cinto', 'Cinto'));
@@ -820,8 +866,11 @@ function buildPrompt(ref){
 function segmentsToHtml(segments){
   return segments.map((s,idx) => {
     const escaped = s.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    if (s.isPose) return `<strong class="hl" data-pose-slot="1">${escaped}</strong>`;
-    if (s.hl) return `<strong class="hl">${escaped}</strong>`;
+    if (s.isPose){
+      if (s.filled) return `<strong data-pose-value="1">${escaped}</strong>`;
+      return `<strong class="hl" data-pose-slot="1">${escaped}</strong>`;
+    }
+    if (s.hl) return `<strong class="hl${s.hlColor === 'green' ? '-green' : ''}">${escaped}</strong>`;
     return escaped;
   }).join(' ');
 }
@@ -829,8 +878,7 @@ function segmentsToHtml(segments){
 // ================= Banco do gerador de poses =================
 const categoryLabels = { bebe:'Bebê sentado', crianca:'Criança em pé', juvenil:'Juvenil', adulto:'Adulto' };
 const segmentoLabels = {
-  infantil:'Moda infantil', feminina_adulta:'Moda feminina adulta', masculina_adulta:'Moda masculina adulta',
-  praia_infantil:'Praia infantil', praia_adulto:'Praia adulto', pijama_infantil:'Pijama infantil', pijama_adulto:'Pijama adulto'
+  infantil:'Moda infantil', feminina_adulta:'Moda feminina adulta', masculina_adulta:'Moda masculina adulta'
 };
 const subjectLabel = {
   bebe:{m:'o bebê',f:'a bebê'}, crianca:{m:'o menino',f:'a menina'},
@@ -843,23 +891,32 @@ const poseBank = {
     {text:'sentad{g}, com as pernas esticadas à frente e as mãos apoiadas suavemente ao lado do corpo'},
     {text:'sentad{g}, com as duas mãozinhas apoiadas sobre o colo, em uma postura tranquila e simples'},
     {text:'sentad{g} de perfil, com o corpo levemente virado em direção à luz'},
-    {text:'sentad{g}, com as mãozinhas apoiadas à frente do corpo, em equilíbrio tranquilo'},
     {text:'sentad{g}, com um bracinho apoiado sobre a perna e o outro solto ao lado do corpo'},
     {text:'sentad{g}, com o corpo ligeiramente inclinado para o lado, o rosto voltado com naturalidade para a câmera'},
-    {text:'sentad{g}, com as pernas levemente dobradas para o lado, em uma postura solta e natural'}
+    {text:'sentad{g}, com as pernas levemente dobradas para o lado, em uma postura solta e natural'},
+    {text:'sentad{g}, com as mãozinhas apoiadas sobre os pés, em uma postura curiosa e natural'},
+    {text:'sentad{g}, com um dos braços apoiado no chão ao lado do corpo, em equilíbrio tranquilo'},
+    {text:'sentad{g} de frente, com as mãos entrelaçadas sobre o colo, em uma postura serena'},
+    {text:'sentad{g}, com o corpo levemente inclinado para trás, apoiad{g} nas próprias mãos'},
+    {text:'sentad{g}, com uma perna dobrada e a outra esticada, as mãos soltas sobre o colo'}
   ],
   crianca: [
     {text:'com o peso apoiado suavemente em uma perna, a outra levemente relaxada'},
     {text:'com as mãos soltas ao longo do corpo, os ombros naturalmente relaxados'},
     {text:'com o corpo levemente inclinado em direção à câmera, em um giro sutil'},
     {text:'com uma mão apoiada de leve no bolso, o corpo em um ângulo natural'},
-    {text:'com as mãos entrelaçadas à frente do corpo, na altura do quadril, em postura simples e ereta'},
     {text:'com um pé levemente à frente do outro, em um passo contido, quase em movimento'},
     {text:'com os braços soltos e o queixo em posição natural, em postura ereta e tranquila'},
     {text:'com o corpo voltado de perfil, o rosto direcionado suavemente para a câmera'},
     {text:'com uma mão tocando de leve a barra da própria roupa, o corpo em postura natural'},
     {text:'com uma mão apoiada de leve na cintura, em uma postura suave e descontraída', genders:['f']},
-    {text:'com as mãos unidas atrás do corpo, em postura ereta e serena'}
+    {text:'com as mãos unidas atrás do corpo, em postura ereta e serena'},
+    {text:'com o corpo levemente girado, um ombro mais à frente que o outro, em pose natural'},
+    {text:'com as mãos soltas nos bolsos, o peso distribuído nas duas pernas'},
+    {text:'com um braço dobrado apoiando a mão no quadril, em postura confiante', genders:['f']},
+    {text:'com o corpo em um leve salto contido, como se estivesse em movimento espontâneo'},
+    {text:'com o corpo levemente inclinado para frente, as mãos apoiadas de leve sobre os joelhos, em pose descontraída'},
+    {text:'com as mãos soltas atrás da nuca, em uma postura descontraída e brincalhona', genders:['m']}
   ],
   juvenil: [
     {text:'com o peso do corpo apoiado em uma perna, em uma postura descontraída e ereta'},
@@ -870,7 +927,12 @@ const poseBank = {
     {text:'com as mãos levemente unidas atrás do corpo, o peso distribuído com naturalidade'},
     {text:'com os braços soltos ao longo do corpo, em postura ereta e confiante'},
     {text:'com uma mão tocando de leve o tecido da própria roupa, em um gesto discreto'},
-    {text:'com uma mão apoiada de leve na cintura, em uma postura suave e natural', genders:['f']}
+    {text:'com uma mão apoiada de leve na cintura, em uma postura suave e natural', genders:['f']},
+    {text:'com um ombro levemente mais alto que o outro, o corpo em um ângulo despojado'},
+    {text:'com uma mão segurando de leve a alça da própria roupa, em postura relaxada'},
+    {text:'com o corpo apoiado de lado, como se estivesse encostad{g} em uma superfície imaginária'},
+    {text:'com as mãos soltas atrás das costas, o queixo levemente erguido, em postura confiante'},
+    {text:'com um pé apontado para o lado, o peso na perna oposta, em pose descontraída'}
   ],
   adulto: [
     {text:'com o peso apoiado em uma perna, o quadril levemente rotacionado em um ângulo sutil'},
@@ -878,28 +940,52 @@ const poseBank = {
     {text:'com um braço levemente dobrado, a mão repousando perto do tecido da roupa'},
     {text:'com o corpo em um giro suave de perfil, o rosto voltado para a câmera'},
     {text:'em passada contida, como se estivesse caminhando naturalmente pela cena'},
-    {text:'com as mãos levemente entrelaçadas à frente do corpo, na altura do quadril, em postura ereta'},
     {text:'com os braços soltos e o corpo levemente apoiado no próprio eixo, em postura relaxada'},
     {text:'com o corpo voltado três quartos para a câmera, o peso distribuído com naturalidade'},
     {text:'com uma mão tocando de leve o tecido da manga, em um gesto natural e discreto'},
     {text:'com uma mão apoiada de leve na cintura, em uma postura elegante e contida', genders:['f']},
-    {text:'com as mãos soltas nos bolsos, o olhar direcionado com naturalidade para a câmera'}
+    {text:'com as mãos soltas nos bolsos, o olhar direcionado com naturalidade para a câmera'},
+    {text:'com um ombro levemente inclinado em direção à câmera, o corpo em postura ereta'},
+    {text:'com as mãos soltas atrás do corpo, o queixo em posição natural e confiante'},
+    {text:'com uma mão apoiada de leve no ombro oposto, em um gesto contido', genders:['f']},
+    {text:'com o corpo apoiado de lado, um cotovelo levemente flexionado, em pose descontraída'},
+    {text:'com um pé à frente do outro, o peso levemente inclinado para trás, em postura elegante'}
   ]
 };
 const expressionBank = {
-  bebe: ['um sorriso leve e espontâneo','um sorriso aberto e alegre','uma risadinha leve, sem exagero','um olhar curioso direcionado para longe da câmera','uma expressão tranquila e serena','um olhar suave em direção à luz','um sorriso contido, quase adormecendo','uma expressão de calma, com os olhos ligeiramente semicerrados','um olhar atento, focado em um ponto além da câmera'],
-  crianca: ['um sorriso leve e natural','um sorriso aberto e espontâneo','um sorriso largo, natural e alegre','um olhar sereno direcionado para a câmera','uma expressão tranquila, quase pensativa','um meio sorriso espontâneo','um olhar suave, levemente desviado da câmera','uma expressão de leveza, sem exagero'],
-  juvenil: ['um olhar confiante e sereno','um meio sorriso discreto','um sorriso aberto e natural','um sorriso largo, mas contido','uma expressão neutra e segura','um olhar direcionado suavemente para fora de quadro','uma expressão tranquila, com o queixo em posição natural','um sorriso contido, quase imperceptível'],
-  adulto: ['um olhar sereno e direto','uma expressão neutra e confiante','um meio sorriso discreto e natural','um sorriso aberto e natural','um sorriso largo, natural e confiante','um olhar suave, levemente distante','uma expressão contida, sem tensão no rosto','um olhar direcionado para além da câmera, com serenidade']
+  bebe: [
+    'um sorriso leve e espontâneo','um sorriso aberto e alegre','uma risadinha leve, sem exagero',
+    'um sorriso largo e contagiante','um sorrisinho tímido e doce','um sorriso solto, de pura alegria',
+    'um sorriso suave, quase adormecendo de tão tranquilo','uma risada leve, com os olhinhos semicerrados',
+    'um olhar curioso direcionado para longe da câmera','uma expressão tranquila e serena',
+    'um olhar atento, focado em um ponto além da câmera'
+  ],
+  crianca: [
+    'um sorriso leve e natural','um sorriso aberto e espontâneo','um sorriso largo, natural e alegre',
+    'um sorriso solto e divertido','uma risada contida, genuína','um sorriso brincalhão, cheio de energia',
+    'um sorriso largo, com covinhas aparecendo','um meio sorriso espontâneo, cheio de leveza',
+    'um sorriso doce, com o olhar suave','um olhar sereno direcionado para a câmera',
+    'uma expressão tranquila, quase pensativa'
+  ],
+  juvenil: [
+    'um sorriso aberto e natural','um sorriso largo e confiante','um sorriso solto, descontraído',
+    'um meio sorriso discreto, mas genuíno','um sorriso confiante, com o olhar direto',
+    'um sorriso espontâneo, cheio de leveza','um sorriso contido, quase imperceptível',
+    'um olhar confiante e sereno','uma expressão neutra e segura',
+    'um olhar direcionado suavemente para fora de quadro'
+  ],
+  adulto: [
+    'um sorriso aberto e natural','um sorriso largo, natural e confiante','um sorriso solto e genuíno',
+    'um meio sorriso discreto e natural','um sorriso confiante, com o olhar direto à câmera',
+    'um sorriso sutil, elegante e natural','um olhar sereno e direto',
+    'uma expressão neutra e confiante','uma expressão contida, sem tensão no rosto',
+    'um olhar direcionado para além da câmera, com serenidade'
+  ]
 };
 const moodBank = {
   infantil: ['em um clima leve e afetuoso','com uma atmosfera descontraída e lúdica','em uma atmosfera simples e alegre, sem exageros','com um ar espontâneo, típico de criança em movimento'],
   feminina_adulta: ['em um clima delicado e elegante','com uma atmosfera suave e sofisticada','em uma atmosfera graciosa e refinada','com um ar contemporâneo e confiante'],
-  masculina_adulta: ['em um clima sóbrio e confiante','com uma atmosfera despojada e segura','em uma atmosfera contida, com presença natural','com um ar moderno e discreto'],
-  praia_infantil: ['em um clima solto, de dia de sol','com uma atmosfera leve e brincalhona, típica de praia','em uma atmosfera descontraída, com energia de férias'],
-  praia_adulto: ['em um clima relaxado, de dia claro à beira-mar','com uma atmosfera solta e natural, sem pressa','em uma atmosfera leve, típica de fim de tarde na praia','com um ar descontraído e confiante'],
-  pijama_infantil: ['em um clima aconchegante e tranquilo','com uma atmosfera calma, de fim de dia','em uma atmosfera suave e caseira, sem pressa'],
-  pijama_adulto: ['em um clima calmo e intimista','com uma atmosfera aconchegante e serena','em uma atmosfera relaxada, de fim de noite','com um ar tranquilo e natural, sem pose forçada']
+  masculina_adulta: ['em um clima sóbrio e confiante','com uma atmosfera despojada e segura','em uma atmosfera contida, com presença natural','com um ar moderno e discreto']
 };
 const poseTemplates = [
   (sujCap,pose,expr,mood)=>`${sujCap} aparece ${pose}, trazendo ${expr}, ${mood}.`,
@@ -927,6 +1013,24 @@ function generatePoseText(category, genero, segmento){
   return poseTemplates[tplIndex](sujCap, poseText, expr, mood, sujLow);
 }
 function generateExpressaoText(category){ return capitalize(pickRandom(expressionBank[category])); }
+
+// Sorteia uma pose/expressão inicial e já preenche o segmento no prompt (em vez
+// de deixar "[POSE A DEFINIR]"/"[EXPRESSÃO A DEFINIR]" esperando um clique manual).
+// O painel "Definir pose/expressão" continua funcionando normalmente por cima
+// disso — o usuário pode gerar outra opção e substituir quando quiser.
+function autoFillPose(result){
+  const poseSeg = result.segments.find(s => s.isPose);
+  if (!poseSeg) return;
+  const segmento = defaultSegmento(result.category, result.genero);
+  const text = result.isExpressaoOnly
+    ? generateExpressaoText(result.category)
+    : generatePoseText(result.category, result.genero, segmento);
+  poseSeg.text = text;
+  poseSeg.filled = true;
+  poseSeg.hl = false;
+  result.autoPoseText = text;
+  result.autoPoseSegmento = segmento;
+}
 
 // ================= Persistência (Supabase) =================
 function debounce(fn, wait){
@@ -1023,7 +1127,7 @@ async function loadClientData(clientId){
     notes: []
   }));
 
-  poseStates = window.__lastResults.map(r => ({segmento: defaultSegmento(r.category, r.genero), history: [], historyIndex: -1}));
+  poseStates = window.__lastResults.map(r => ({segmento: r.autoPoseSegmento || defaultSegmento(r.category, r.genero), history: r.autoPoseText ? [r.autoPoseText] : [], historyIndex: r.autoPoseText ? 0 : -1}));
   renderResults(window.__lastResults, []);
   wireAutosave();
 
@@ -1110,18 +1214,26 @@ processBtn.addEventListener('click', async () => {
   for (const file of selectedFiles){
     statusEl.textContent = `Lendo ${file.name}...`;
     try{
-      const text = await extractRawText(file);
-      const {parsed, warnings} = findJsonBlocks(text);
-      warnings.forEach(w => allWarnings.push(`[${file.name}] ${w}`));
-      if (parsed.length === 0) allWarnings.push(`[${file.name}] Nenhum bloco JSON encontrado — formato não suportado ou ficha sem JSON embutido.`);
-      parsed.forEach(ref => {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({data: buf}).promise;
+      let anyFoundInFile = false;
+      for (let p = 1; p <= pdf.numPages; p++){
+        const page = await pdf.getPage(p);
+        const content = await page.getTextContent();
+        const pageText = content.items.map(it => it.str).join('');
+        const ref = parseRefFromPageText(pageText);
+        if (!ref) continue; // página de continuação (fotos extras) ou sem ficha
+        anyFoundInFile = true;
         normalizeRef(ref);
         const result = buildPrompt(ref);
         result.source = file.name;
+        result.page = p; // página onde esta ocorrência específica começa — usado pra achar as fotos certas mesmo quando o mesmo código de referência se repete no PDF
         result.raw = ref;
         result.hasPhotos = PHOTO_FIELD_ORDER.some(([qtyKey]) => (ref[qtyKey] || 0) > 0);
+        autoFillPose(result);
         newResults.push(result);
-      });
+      }
+      if (!anyFoundInFile) allWarnings.push(`[${file.name}] Nenhum bloco JSON encontrado — formato não suportado ou ficha sem JSON embutido.`);
     }catch(err){
       allWarnings.push(`[${file.name}] Erro ao processar: ${err.message}`);
     }
@@ -1158,7 +1270,7 @@ processBtn.addEventListener('click', async () => {
   }
 
   window.__lastResults = mergedResults;
-  poseStates = mergedResults.map(r => ({segmento: defaultSegmento(r.category, r.genero), history: [], historyIndex: -1}));
+  poseStates = mergedResults.map(r => ({segmento: r.autoPoseSegmento || defaultSegmento(r.category, r.genero), history: r.autoPoseText ? [r.autoPoseText] : [], historyIndex: r.autoPoseText ? 0 : -1}));
   renderResults(mergedResults, allWarnings);
 
   if (window.__currentClient){
@@ -1233,6 +1345,7 @@ function renderResults(results, warnings){
   `).join('');
 
   results.forEach((r, i) => { if (!r.isExpressaoOnly) renderSegmentoPills(i, r.category); });
+  results.forEach((r, i) => { if (poseStates[i] && poseStates[i].history.length) updatePoseNav(i); });
 
   resultsEl.querySelectorAll('.ref-check').forEach(cb => {
     cb.addEventListener('click', e => e.stopPropagation());
@@ -1426,6 +1539,18 @@ function imageObjectToCanvas(obj){
   return canvas;
 }
 
+function multiplyMatrix(m1, m2){
+  // m = [a,b,c,d,e,f] representando [[a,b,0],[c,d,0],[e,f,1]]
+  return [
+    m1[0]*m2[0] + m1[1]*m2[2],
+    m1[0]*m2[1] + m1[1]*m2[3],
+    m1[2]*m2[0] + m1[3]*m2[2],
+    m1[2]*m2[1] + m1[3]*m2[3],
+    m1[4]*m2[0] + m1[5]*m2[2] + m2[4],
+    m1[4]*m2[1] + m1[5]*m2[3] + m2[5],
+  ];
+}
+
 async function extractImagesFromPage(page, pageNum){
   // Força o pdf.js a decodificar as imagens da página (necessário antes de objs.get)
   const viewport = page.getViewport({scale: 1});
@@ -1438,10 +1563,18 @@ async function extractImagesFromPage(page, pageNum){
   const OPS = pdfjsLib.OPS;
   const found = [];
   const seenNamesOnPage = new Set();
+  let ctm = [1,0,0,1,0,0];
+  const ctmStack = [];
 
   for (let k = 0; k < opList.fnArray.length; k++){
     const fn = opList.fnArray[k];
-    if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject){
+    if (fn === OPS.save){ ctmStack.push(ctm); }
+    else if (fn === OPS.restore){ ctm = ctmStack.pop() || ctm; }
+    else if (fn === OPS.transform){
+      const args = opList.argsArray[k];
+      ctm = multiplyMatrix(args, ctm);
+    }
+    else if (fn === OPS.paintImageXObject || fn === OPS.paintJpegXObject){
       const name = opList.argsArray[k][0];
       if (!name || seenNamesOnPage.has(name)) continue;
       seenNamesOnPage.add(name);
@@ -1450,7 +1583,10 @@ async function extractImagesFromPage(page, pageNum){
         if (!obj || !obj.width || !obj.height) continue;
         if (obj.width < 25 || obj.height < 25) continue; // ignora ícones/fragmentos minúsculos
         const canvas = imageObjectToCanvas(obj);
-        found.push({page: pageNum, canvas});
+        // posição aproximada da imagem na página (origem inferior-esquerda, em pontos PDF)
+        const posY = ctm[5];
+        const nearTop = posY > viewport.height * 0.85; // faixa onde fica a logo do cabeçalho
+        found.push({page: pageNum, canvas, nearTop});
       }catch(e){ console.warn(`Imagem "${name}" (página ${pageNum}) não resolveu:`, e); }
     }
   }
@@ -1460,6 +1596,8 @@ async function extractImagesFromPage(page, pageNum){
 async function extractAllImages(files, onProgress){
   const allImages = [];
   const pageRefMaps = {};
+  const occurrenceMaps = {};
+  const debugInfo = { perFile: {} };
 
   for (const file of files){
     const buf = await file.arrayBuffer();
@@ -1471,19 +1609,34 @@ async function extractAllImages(files, onProgress){
       pageTexts.push(content.items.map(it => it.str).join(''));
     }
     let current = null;
+    let currentStartPage = null;
     const refMap = {};
+    const occurrenceMap = {};
+    const debugPages = [];
     pageTexts.forEach((t, idx) => {
-      // usa o mesmo mecanismo confiável de extração de JSON já usado pros prompts,
-      // em vez de caçar o texto visível "Ref. XXXX" (que quebra quando o pdf.js
-      // junta os fragmentos de texto sem espaço, colando o código no texto seguinte)
-      const {parsed} = findJsonBlocks(t);
-      if (parsed.length){
-        const ref = parsed[parsed.length - 1]; // último bloco JSON da página, se houver mais de um
-        if (ref && ref.codigo) current = ref.codigo;
-      }
+      // O JSON oculto embutido na ficha às vezes é extraído pelo pdf.js com os
+      // pedaços FORA DE ORDEM (o fim do JSON aparece antes do começo), o que
+      // quebra qualquer tentativa de JSON.parse no bloco inteiro. Mas cada par
+      // chave-valor continua intacto — então buscamos direto o valor de
+      // "codigo" com uma regex, sem depender da ordem/estrutura do resto do JSON.
+      const m = t.match(/"codigo"\s*:\s*"([^"]*)"/);
+      let foundCodigo = null;
+      const isNewOccurrence = /"_id"\s*:/.test(t);
+      if (isNewOccurrence) currentStartPage = idx + 1; // marca a página onde ESTA ocorrência específica começa (mesmo que o código se repita em outra referência do mesmo PDF)
+      if (m && m[1]){ current = m[1]; foundCodigo = m[1]; }
       refMap[idx+1] = current;
+      occurrenceMap[idx+1] = currentStartPage;
+      debugPages.push({
+        page: idx+1,
+        codigoFoundOnPage: foundCodigo,
+        currentAfterThisPage: current,
+        occurrenceStartPage: currentStartPage,
+        textPreview: t.slice(0, 120)
+      });
     });
     pageRefMaps[file.name] = refMap;
+    occurrenceMaps[file.name] = occurrenceMap;
+    debugInfo.perFile[file.name] = debugPages;
 
     for (let p = 1; p <= pdf.numPages; p++){
       if (onProgress) onProgress(`Lendo imagens de ${file.name} — página ${p}/${pdf.numPages}...`);
@@ -1493,9 +1646,11 @@ async function extractAllImages(files, onProgress){
     }
   }
 
-  // descarta imagens decorativas (logo/rodapé repetido em 3+ páginas diferentes).
-  // Antes qualquer repetição (mesmo 2x na MESMA página, ex: miniatura + foto grande
-  // da mesma referência) já era descartada, apagando fotos reais do cliente.
+  // descarta imagens decorativas (logo/rodapé fixo no TOPO da página, repetido
+  // em 3+ páginas diferentes). Uma foto de produto que o cliente reaproveitou
+  // em várias fichas (ex: o mesmo tênis em 5 referências) também se repete,
+  // mas fica na seção "FOTOS DE REFERÊNCIA" (mais abaixo na página) — por isso
+  // exigimos as DUAS condições: repetição E posição no topo, não só uma delas.
   const dataUrls = allImages.map(img => img.canvas.toDataURL('image/png'));
   const pagesPerDataUrl = {};
   allImages.forEach((img, i) => {
@@ -1503,12 +1658,33 @@ async function extractAllImages(files, onProgress){
     (pagesPerDataUrl[dataUrls[i]] = pagesPerDataUrl[dataUrls[i]] || new Set()).add(pageKey);
   });
   const DECORATIVE_MIN_PAGES = 3;
-  const uniqueImages = allImages.filter((img,i) => pagesPerDataUrl[dataUrls[i]].size < DECORATIVE_MIN_PAGES)
-    .map((img) => ({...img}));
+  const uniqueImages = allImages.filter((img,i) => {
+    const repeatsEnough = pagesPerDataUrl[dataUrls[i]].size >= DECORATIVE_MIN_PAGES;
+    return !(repeatsEnough && img.nearTop); // só descarta se repete MUITO e fica no topo
+  }).map((img) => ({...img}));
   // recalcula dataUrl só das únicas (mantendo alinhado por referência do objeto)
   uniqueImages.forEach(img => { img.dataUrl = img.canvas.toDataURL('image/png'); });
 
-  return {uniqueImages, pageRefMaps};
+  // ---- DIAGNÓSTICO TEMPORÁRIO: abra o Console (F12) e veja essas tabelas ----
+  console.log('%c[DEBUG] Mapeamento página → código por arquivo', 'font-weight:bold');
+  Object.entries(debugInfo.perFile).forEach(([fname, pages]) => {
+    console.log(`Arquivo: ${fname}`);
+    console.table(pages.map(p => ({
+      pagina: p.page,
+      codigoNaPagina: p.codigoFoundOnPage, codigoAcumulado: p.currentAfterThisPage
+    })));
+  });
+  console.log('%c[DEBUG] Imagens extraídas (antes do filtro de decorativas)', 'font-weight:bold');
+  console.table(allImages.map((img, i) => ({
+    arquivo: img.sourceFile, pagina: img.page, largura: img.canvas.width, altura: img.canvas.height,
+    apareceEmNPaginas: pagesPerDataUrl[dataUrls[i]].size, noTopoDaPagina: img.nearTop,
+    descartadaComoDecorativa: pagesPerDataUrl[dataUrls[i]].size >= DECORATIVE_MIN_PAGES && img.nearTop
+  })));
+  window.__debugImgExtraction = { pageRefMaps, debugInfo, allImagesCount: allImages.length, uniqueImagesCount: uniqueImages.length };
+  console.log('Objeto completo disponível em window.__debugImgExtraction');
+  // ---- FIM DO DIAGNÓSTICO ----
+
+  return {uniqueImages, pageRefMaps, occurrenceMaps};
 }
 
 async function getAllClientPdfFiles(){
@@ -1529,66 +1705,6 @@ async function getAllClientPdfFiles(){
   }
   return files.length ? files : localFallback();
 }
-
-// ================= Extração BRUTA de imagens (sem casar com referência/código) =================
-// Equivalente a "Salvar imagem como..." do Acrobat em cada imagem embutida do PDF:
-// pega o objeto de imagem nativo decodificado pelo pdf.js, na resolução e proporção
-// originais, sem recorte, sem filtro de "decorativa/duplicada" e sem depender do
-// JSON da ficha. Organiza em uma pasta por PDF, numerada por página.
-document.getElementById('downloadRawImagesBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('downloadRawImagesBtn');
-  const statusEl = document.getElementById('status');
-  btn.disabled = true;
-  statusEl.textContent = 'Extraindo todas as imagens dos PDFs...';
-
-  try{
-    const files = await getAllClientPdfFiles();
-    if (!files.length){
-      statusEl.textContent = 'Nenhum PDF carregado ainda. Escolha um PDF acima primeiro.';
-      btn.disabled = false;
-      return;
-    }
-
-    const zip = new JSZip();
-    let total = 0;
-
-    for (const file of files){
-      const baseName = sanitizeForFilename(file.name.replace(/\.pdf$/i, ''));
-      const folder = zip.folder(baseName);
-      const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({data: buf}).promise;
-
-      for (let p = 1; p <= pdf.numPages; p++){
-        statusEl.textContent = `Extraindo imagens — ${file.name} (página ${p}/${pdf.numPages})...`;
-        const page = await pdf.getPage(p);
-        const imgs = await extractImagesFromPage(page, p);
-        imgs.forEach((img, idx) => {
-          const dataUrl = img.canvas.toDataURL('image/png');
-          const fileName = `pagina_${String(p).padStart(3, '0')}_img_${idx + 1}.png`;
-          folder.file(fileName, dataUrl.split(',')[1], {base64: true});
-          total++;
-        });
-      }
-    }
-
-    if (total === 0){
-      statusEl.textContent = 'Nenhuma imagem embutida foi encontrada nos PDFs.';
-      btn.disabled = false;
-      return;
-    }
-
-    const blob = await zip.generateAsync({type: 'blob'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = `${getClientFileBase()}_imagens_brutas.zip`;
-    a.click();
-    URL.revokeObjectURL(url);
-    statusEl.textContent = `${total} imagem(ns) extraída(s) na resolução original, sem filtro.`;
-  }catch(err){
-    statusEl.textContent = `Erro ao extrair imagens: ${err.message}`;
-  }
-  btn.disabled = false;
-});
 
 const LABEL_DISPLAY = {
   acessorio_cabeca: 'AcessorioCabeca',
@@ -1614,14 +1730,21 @@ document.getElementById('downloadZipBtn').addEventListener('click', async () => 
 
   try{
     const filesForImages = await getAllClientPdfFiles();
-    const {uniqueImages, pageRefMaps} = await extractAllImages(filesForImages, msg => { statusEl.textContent = msg; });
+    const {uniqueImages, pageRefMaps, occurrenceMaps} = await extractAllImages(filesForImages, msg => { statusEl.textContent = msg; });
 
-    const byFileRef = {};
+    const byFileRefPage = {};   // chave precisa: arquivo + página onde a ocorrência começa
+    const byFileRefCodigo = {}; // chave de fallback: arquivo + código (usada só quando não sabemos a página, ex: referências recarregadas do banco)
     uniqueImages.forEach(img => {
+      const startPage = occurrenceMaps[img.sourceFile] ? occurrenceMaps[img.sourceFile][img.page] : null;
       const codigo = pageRefMaps[img.sourceFile] ? pageRefMaps[img.sourceFile][img.page] : null;
-      if (!codigo) return;
-      const key = `${img.sourceFile}::${codigo}`;
-      (byFileRef[key] = byFileRef[key] || []).push(img);
+      if (startPage != null){
+        const key = `${img.sourceFile}::${startPage}`;
+        (byFileRefPage[key] = byFileRefPage[key] || []).push(img);
+      }
+      if (codigo){
+        const key = `${img.sourceFile}::${codigo}`;
+        (byFileRefCodigo[key] = byFileRefCodigo[key] || []).push(img);
+      }
     });
 
     const zip = new JSZip();
@@ -1630,8 +1753,15 @@ document.getElementById('downloadZipBtn').addEventListener('click', async () => 
     let totalSaved = 0;
 
     (window.__lastResults || []).forEach(r => {
-      const key = `${r.source}::${r.codigo}`;
-      const imgs = byFileRef[key];
+      // Duas referências diferentes no mesmo PDF podem ter o MESMO código
+      // (já vimos isso acontecer). Por isso, sempre que soubermos a página
+      // exata desta ocorrência (r.page — preenchido ao gerar os prompts nesta
+      // sessão), usamos ela pra achar as fotos certas. Só caímos no código
+      // (menos preciso) quando a página não está disponível, como ao recarregar
+      // referências salvas de sessões anteriores.
+      const imgs = (r.page != null && byFileRefPage[`${r.source}::${r.page}`])
+        ? byFileRefPage[`${r.source}::${r.page}`]
+        : byFileRefCodigo[`${r.source}::${r.codigo}`];
       if (!imgs || !imgs.length) return;
 
       const expectedLabels = [];
@@ -1688,15 +1818,19 @@ function groupAndSortForExport(results){
 
 function domToDocxRuns(container, TextRun){
   const runs = [];
-  function walk(node, bold){
+  function walk(node, bold, highlightColor){
     if (node.nodeType === Node.TEXT_NODE){
-      if (node.textContent) runs.push(new TextRun({text: node.textContent, bold: bold, highlight: bold ? 'yellow' : undefined}));
+      if (node.textContent) runs.push(new TextRun({text: node.textContent, bold: bold, highlight: bold ? (highlightColor || 'yellow') : undefined}));
     } else if (node.nodeType === Node.ELEMENT_NODE){
       const isBold = bold || node.tagName === 'STRONG' || node.tagName === 'B';
-      node.childNodes.forEach(child => walk(child, isBold));
+      let color = highlightColor;
+      if (node.tagName === 'STRONG' || node.tagName === 'B'){
+        color = node.classList && node.classList.contains('hl-green') ? 'green' : (color || 'yellow');
+      }
+      node.childNodes.forEach(child => walk(child, isBold, color));
     }
   }
-  container.childNodes.forEach(child => walk(child, false));
+  container.childNodes.forEach(child => walk(child, false, null));
   return runs;
 }
 
