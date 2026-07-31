@@ -16,6 +16,9 @@
     --pose:#7a3a30; --pose-soft:#f3e6e3;
     --warn:#a15c1f; --warn-soft:#fbeee0;
     --hl-bg:#fff3b0; --hl-ink:#5c4a00;
+    --pose-yellow-bg:#fff8d6; --pose-yellow-ink:#5c4300;
+    --pose-yellow-line:#e8b30a; --pose-yellow-strong:#ffeda1;
+    --gerado:#2f7d4f; --gerado-soft:#e3f3e9; --gerado-line:#8fcfab;
   }
   [data-theme="dark"]{
     --bg:#141416; --card:#1e1f22; --ink:#f2f1ec; --muted:#9b9a94;
@@ -23,6 +26,9 @@
     --pose:#e0958c; --pose-soft:#3a2624;
     --warn:#e0a868; --warn-soft:#3a2f1c;
     --hl-bg:#4a3f14; --hl-ink:#ffe27a;
+    --pose-yellow-bg:#3d3411; --pose-yellow-ink:#ffe27a;
+    --pose-yellow-line:#c9960a; --pose-yellow-strong:#4d3f0e;
+    --gerado:#7fc4ab; --gerado-soft:#1c332a; --gerado-line:#3a5c4c;
   }
   *{box-sizing:border-box;}
   body{
@@ -219,9 +225,19 @@
   .btn-ghost:hover{background:var(--accent-soft);}
   #status{margin-top:12px; font-size:13px; color:var(--muted); min-height:18px;}
   .results{margin-top:30px; display:flex; flex-direction:column; gap:16px;}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px;}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; transition:background .15s, border-color .15s;}
+  .card.gerado{background:var(--gerado-soft); border-color:var(--gerado-line);}
+  .gerado-toggle{
+    display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700;
+    color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px;
+    padding:6px 12px 6px 10px; cursor:pointer; user-select:none; transition:.15s; flex:none;
+  }
+  .gerado-toggle:hover{border-color:var(--gerado);}
+  .gerado-toggle input{accent-color:var(--gerado); width:15px; height:15px; cursor:pointer;}
+  .gerado-toggle.checked{color:var(--gerado); background:var(--gerado-soft); border-color:var(--gerado-line);}
   .card-head{display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap;}
   .code{font-weight:800; font-size:15px; font-family:'Manrope',sans-serif;}
+  .code .variante{font-weight:600; color:var(--accent);}
   .meta{color:var(--muted); font-size:13px;}
   .prompt-box{
     width:100%; margin-top:10px; font-family:inherit; font-size:13.5px;
@@ -236,6 +252,21 @@
     background:#d4f4dd; color:#166534; font-weight:700;
     padding:1px 4px; border-radius:4px;
   }
+  /* Pose: realce amarelo discreto — só um marca-texto, sem contorno */
+  .prompt-box strong.pose-hl,
+  .prompt-box strong.pose-filled{
+    display:inline; font-weight:700;
+    padding:1px 4px; border-radius:4px;
+    background:var(--pose-yellow-bg); color:var(--ink);
+    box-decoration-break:clone; -webkit-box-decoration-break:clone;
+  }
+  /* placeholder ainda não definido: só um tom levemente mais forte */
+  .prompt-box strong.pose-hl{
+    background:var(--pose-yellow-strong);
+  }
+  /* Blocos do prompt — cada um em sua própria linha */
+  .prompt-box .p-block{margin:0 0 12px;}
+  .prompt-box .p-block:last-child{margin-bottom:0;}
   .card-actions{margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;}
   .copy-btn{font-size:12.5px; padding:7px 13px; background:var(--accent-soft); color:var(--accent); border-radius:8px;}
   .copy-btn:hover{filter:brightness(0.97);}
@@ -244,6 +275,17 @@
   .notes{margin-top:10px; background:var(--warn-soft); color:var(--warn); border-radius:10px; padding:9px 12px; font-size:12.5px;}
   .notes div{padding:1px 0;}
   .warnings{background:var(--warn-soft); border-radius:14px; padding:14px 16px; margin-top:18px; font-size:13px; color:var(--warn);}
+  .toast-wrap{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    display:flex; flex-direction:column; gap:8px; z-index:9999; pointer-events:none;
+  }
+  .toast{
+    background:var(--ink); color:var(--card); font-size:13.5px; font-weight:600;
+    padding:11px 20px; border-radius:24px; box-shadow:0 10px 30px rgba(0,0,0,.25);
+    opacity:0; transform:translateY(8px); transition:opacity .2s ease, transform .2s ease;
+    white-space:nowrap;
+  }
+  .toast.show{opacity:1; transform:translateY(0);}
   .warnings div{padding:2px 0;}
 
   .pose-panel{display:none; margin-top:14px; padding:14px 16px; border-radius:12px; background:var(--pose-soft); border:1px solid var(--pose);}
@@ -258,14 +300,35 @@
     width:32px; height:32px; border-radius:50%; padding:0; font-size:15px; line-height:1;
   }
   .pose-nav button:disabled{opacity:.35; cursor:not-allowed;}
-  .pose-result{font-style:italic; font-size:13.5px; flex:1; min-height:20px;}
-  .pose-btn-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .pose-result{
+    font-size:13px; line-height:1.5; flex:1; min-height:20px;
+    background:var(--card); border:1px dashed var(--pose); border-radius:9px; padding:8px 11px;
+  }
+  .pose-btn-row{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  .pose-nav{display:flex; align-items:stretch; gap:10px; margin:10px 0;}
+  .pose-axes{display:flex; flex-direction:column; gap:7px; margin:10px 0 4px;}
+  .pose-axis{
+    display:flex; align-items:center; gap:9px;
+    background:var(--card); border:1px solid var(--line); border-radius:9px; padding:7px 9px;
+  }
+  .axis-tag{
+    flex:none; font-size:10.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+    color:var(--pose); background:var(--pose-soft); border-radius:5px; padding:3px 7px; min-width:64px; text-align:center;
+  }
+  .axis-text{flex:1; font-size:12.5px; line-height:1.45; color:var(--ink);}
+  .axis-dice{
+    flex:none; background:transparent; border:1px solid var(--line); border-radius:7px;
+    padding:4px 8px; font-size:13px; line-height:1; cursor:pointer;
+  }
+  .axis-dice:hover{border-color:var(--pose); background:var(--pose-soft);}
+  .combo-count{font-size:11.5px; color:var(--muted); align-self:center; margin-left:auto;}
   .pose-gen-btn{background:var(--pose); color:#fff; font-size:12.5px; padding:8px 14px;}
   .pose-use-btn{background:var(--card); color:var(--pose); border:1px solid var(--pose); font-size:12.5px; padding:8px 14px;}
   .pose-use-btn:disabled{opacity:.5; cursor:not-allowed;}
 </style>
 </head>
 <body data-theme="light">
+<div class="toast-wrap" id="toastWrap"></div>
 
 <div id="loginScreen" class="login-screen">
   <div class="login-card">
@@ -644,7 +707,7 @@ function rememberProcessedFiles(files){
     if (!processedPdfFiles.some(pf => pf.name === f.name && pf.size === f.size)) processedPdfFiles.push(f);
   });
 }
-let poseStates = []; // {segmento, history:[], historyIndex}
+let poseStates = []; // {parts:{pose,cabeca,expr}, history:[{pose,cabeca,expr}], historyIndex, undoStack}
 let refSelectMode = false;
 let selectedRefIndices = new Set();
 
@@ -766,11 +829,46 @@ const POSE_BASE_BY_GRADE = {
   "Adulto": "Modelo em pé, aparecendo o corpo todo.",
   "Plus Size": "Modelo em pé, aparecendo o corpo todo."
 };
+// A grade "Bebê" pode ser fotografada de três jeitos. Cada postura troca a frase
+// base do prompt E o banco de poses usado no sorteio.
+const BEBE_POSTURAS = {
+  cilindro: {
+    label: 'Sentado no cilindro',
+    base: POSE_BASE_BY_GRADE["Bebê"],
+    category: 'bebe_cilindro'
+  },
+  chao: {
+    label: 'Sentado no chão',
+    base: "Modelo sentado no chão, pernas relaxadas e naturais, postura anatômica realista.",
+    category: 'bebe_chao'
+  },
+  pe: {
+    label: 'Em pé',
+    base: "Modelo em pé, aparecendo o corpo todo.",
+    category: 'bebe_pe'
+  }
+};
+const BEBE_POSTURA_PADRAO = 'cilindro';
+// Todas as frases-base conhecidas, usadas pra localizar e trocar a frase inicial
+// mesmo em prompts antigos já salvos (que não têm o marcador data-pose-base).
+const TODAS_BASES = [...new Set([...Object.values(POSE_BASE_BY_GRADE), ...Object.values(BEBE_POSTURAS).map(p => p.base)])];
+
 const GRADES_SO_EXPRESSAO = new Set(["RN"]);
 const POSE_CATEGORY_BY_GRADE = {
-  "RN":"bebe","Bebê":"bebe","Primeiros Passos":"crianca","Infantil":"crianca",
+  "RN":"bebe_cilindro","Bebê":"bebe_cilindro","Primeiros Passos":"crianca","Infantil":"crianca",
   "Juvenil":"juvenil","Teen":"juvenil","Adulto":"adulto","Plus Size":"adulto"
 };
+// Categoria efetiva de poses de uma referência: pra Bebê depende da postura
+// escolhida; pras demais grades é fixa.
+function resolvePoseCategory(r){
+  if (!r) return 'adulto';
+  if ((r.grade || '').trim() === 'Bebê'){
+    const p = BEBE_POSTURAS[r.posturaBebe || BEBE_POSTURA_PADRAO] || BEBE_POSTURAS[BEBE_POSTURA_PADRAO];
+    return p.category;
+  }
+  return r.category || POSE_CATEGORY_BY_GRADE[(r.grade||'').trim()] || 'adulto';
+}
+function isBebeGrade(r){ return (r && (r.grade||'').trim()) === 'Bebê'; }
 const GRADE_ORDER = KNOWN_GRADES; // RN -> Plus Size
 const GENDER_ORDER = ["menina","menino"]; // da menina ao menino
 const PHOTO_FIELD_ORDER = [
@@ -850,169 +948,370 @@ function buildPrompt(ref){
   const isExpressaoOnly = GRADES_SO_EXPRESSAO.has(grade);
   const poseLabel = isExpressaoOnly ? '[EXPRESSÃO A DEFINIR]' : '[POSE A DEFINIR]';
 
+  // O prompt é organizado em BLOCOS. Segmentos do mesmo bloco ficam na mesma
+  // linha; cada bloco novo começa em uma linha nova. Isso evita o parágrafo
+  // gigante e deixa a leitura/conferência muito mais rápida.
+  //   1 = modelo + postura base   2 = composição da peça
+  //   3 = pose/expressão          4 = fechamento técnico   5 = maquiagem
   const segments = [
-    {text:`O modelo da imagem de referência, sem mudar a aparência. ${poseBaseSentence}`, hl:false},
-    ...fichaSegs,
-    {text:poseLabel, hl:true, isPose:true},
-    {text:FECHAMENTO_FIXO, hl:false}
+    {text:`O modelo da imagem de referência, sem mudar a aparência. ${poseBaseSentence}`, hl:false, block:1, isBase:true},
+    ...fichaSegs.map(s => ({...s, block:2})),
+    {text:poseLabel, hl:true, isPose:true, block:3},
+    {text:FECHAMENTO_FIXO, hl:false, block:4}
   ];
   if ((ref.genero || '').trim().toLowerCase() === 'menina' && KNOWN_GRADES.indexOf(grade) >= KNOWN_GRADES.indexOf('Infantil')){
-    segments.push({text: MAQUIAGEM_FEMININA, hl:false});
+    segments.push({text: MAQUIAGEM_FEMININA, hl:false, block:5});
   }
-  return {codigo: ref.codigo, grade, genero: ref.genero, category, isExpressaoOnly, segments, notes};
+  const result = {codigo: ref.codigo, variante: ref.variante || '', grade, genero: ref.genero, category, isExpressaoOnly, segments, notes};
+  if (grade === 'Bebê') result.posturaBebe = BEBE_POSTURA_PADRAO;
+  return result;
 }
 
 // ================= Render de segmentos em HTML =================
+// Cada bloco vira uma <div class="p-block">, então o prompt sai em linhas
+// separadas em vez de um parágrafo único. innerText (usado no Copiar) e o
+// export DOCX respeitam essas quebras.
 function segmentsToHtml(segments){
-  return segments.map((s,idx) => {
+  const blocks = [];
+  segments.forEach(s => {
+    const b = s.block || 1;
+    let bucket = blocks.find(x => x.block === b);
+    if (!bucket){ bucket = {block:b, html:[]}; blocks.push(bucket); }
     const escaped = s.text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     if (s.isPose){
-      if (s.filled) return `<strong data-pose-value="1">${escaped}</strong>`;
-      return `<strong class="hl" data-pose-slot="1">${escaped}</strong>`;
+      bucket.html.push(s.filled
+        ? `<strong class="pose-filled" data-pose-value="1">${escaped}</strong>`
+        : `<strong class="pose-hl" data-pose-slot="1">${escaped}</strong>`);
+    } else if (s.hl){
+      bucket.html.push(`<strong class="hl${s.hlColor === 'green' ? '-green' : ''}">${escaped}</strong>`);
+    } else if (s.isBase){
+      bucket.html.push(`<span data-pose-base="1">${escaped}</span>`);
+    } else {
+      bucket.html.push(escaped);
     }
-    if (s.hl) return `<strong class="hl${s.hlColor === 'green' ? '-green' : ''}">${escaped}</strong>`;
-    return escaped;
-  }).join(' ');
+  });
+  return blocks.map(b => `<div class="p-block">${b.html.join(' ')}</div>`).join('');
 }
 
 // ================= Banco do gerador de poses =================
-const categoryLabels = { bebe:'Bebê sentado', crianca:'Criança em pé', juvenil:'Juvenil', adulto:'Adulto' };
-const segmentoLabels = {
-  infantil:'Moda infantil', feminina_adulta:'Moda feminina adulta', masculina_adulta:'Moda masculina adulta'
+// Estrutura em 3 eixos independentes que se combinam livremente:
+//   POSE (corpo) x ÂNGULO DE CABEÇA x EXPRESSÃO
+// Regras da casa embutidas neste banco:
+//   - O produto (roupa) é sempre o foco: nenhuma pose coloca mãos/braços na
+//     frente do tronco, nem encosta/segura o tecido da peça.
+//   - Nada de extremos: sem saltos, sem torções fortes, sem gestos teatrais.
+//   - "Mão na cintura" e derivados são exclusivos de menina (genders:['f']).
+//   - Sem menção a ambiente/cenário — só pose, cabeça e expressão.
+//   - "Mãos no bolso" NÃO entra no sorteio: é campo próprio da ficha.
+//   - Maioria clara de expressões sorridentes (~75%+ de cada banco).
+const categoryLabels = {
+  bebe_cilindro:'Bebê sentado no cilindro',
+  bebe_chao:'Bebê sentado no chão',
+  bebe_pe:'Bebê em pé',
+  crianca:'Criança em pé',
+  juvenil:'Juvenil',
+  adulto:'Adulto'
 };
-const subjectLabel = {
-  bebe:{m:'o bebê',f:'a bebê'}, crianca:{m:'o menino',f:'a menina'},
-  juvenil:{m:'o jovem',f:'a jovem'}, adulto:{m:'o modelo',f:'a modelo'}
-};
+
 const poseBank = {
-  bebe: [
-    {text:'sentad{g} de frente para a câmera, com as pernas levemente cruzadas e as mãozinhas apoiadas sobre o colo'},
-    {text:'sentad{g} de lado, com o corpo levemente inclinado para frente e o rosto voltado em direção à luz'},
-    {text:'sentad{g}, com as pernas esticadas à frente e as mãos apoiadas suavemente ao lado do corpo'},
-    {text:'sentad{g}, com as duas mãozinhas apoiadas sobre o colo, em uma postura tranquila e simples'},
-    {text:'sentad{g} de perfil, com o corpo levemente virado em direção à luz'},
+  // ---------- BEBÊ SENTADO NO CILINDRO ----------
+  bebe_cilindro: [
+    {text:'sentad{g} de frente para a câmera, com os bracinhos soltos ao lado do corpo'},
+    {text:'sentad{g} de frente, com as mãozinhas apoiadas no cilindro ao lado do quadril'},
     {text:'sentad{g}, com um bracinho apoiado sobre a perna e o outro solto ao lado do corpo'},
-    {text:'sentad{g}, com o corpo ligeiramente inclinado para o lado, o rosto voltado com naturalidade para a câmera'},
-    {text:'sentad{g}, com as pernas levemente dobradas para o lado, em uma postura solta e natural'},
-    {text:'sentad{g}, com as mãozinhas apoiadas sobre os pés, em uma postura curiosa e natural'},
-    {text:'sentad{g}, com um dos braços apoiado no chão ao lado do corpo, em equilíbrio tranquilo'},
-    {text:'sentad{g} de frente, com as mãos entrelaçadas sobre o colo, em uma postura serena'},
-    {text:'sentad{g}, com o corpo levemente inclinado para trás, apoiad{g} nas próprias mãos'},
-    {text:'sentad{g}, com uma perna dobrada e a outra esticada, as mãos soltas sobre o colo'}
+    {text:'sentad{g} de frente, com os ombros relaxados e os bracinhos caídos naturalmente'},
+    {text:'sentad{g}, com o corpo levemente girado para um dos lados e os bracinhos soltos'},
+    {text:'sentad{g}, com as perninhas levemente afastadas e os bracinhos relaxados ao lado do corpo'},
+    {text:'sentad{g} de frente, com um dos bracinhos levemente afastado do tronco'},
+    {text:'sentad{g}, com as costas eretas e os bracinhos soltos, deixando a roupa totalmente visível'},
+    {text:'sentad{g}, com o tronco levemente inclinado para um dos lados e os bracinhos relaxados'},
+    {text:'sentad{g} de frente, com um pezinho ligeiramente à frente do outro'},
+    {text:'sentad{g}, com os bracinhos levemente abertos, sem cobrir a frente da roupa'},
+    {text:'sentad{g} de três quartos, com os bracinhos soltos ao lado do corpo'},
+    {text:'sentad{g}, com uma das mãozinhas apoiada na lateral do cilindro'},
+    {text:'sentad{g} de frente, em postura ereta e simétrica, com os bracinhos ao lado do corpo'},
+    {text:'sentad{g}, com os ombrinhos levemente para trás e os bracinhos naturalmente soltos'},
+    {text:'sentad{g} de frente, com as perninhas relaxadas e os bracinhos afastados do tronco'},
+    {text:'sentad{g}, com um dos ombros levemente mais à frente que o outro, bracinhos soltos'}
   ],
+  // ---------- BEBÊ SENTADO NO CHÃO (sempre de frente) ----------
+  bebe_chao: [
+    {text:'sentad{g} no chão de frente para a câmera, com as perninhas relaxadas à frente e os bracinhos soltos ao lado do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, com uma das mãozinhas apoiada no chão ao lado do quadril'},
+    {text:'sentad{g} no chão de frente para a câmera, com as duas mãozinhas apoiadas no chão ao lado do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, com as perninhas levemente dobradas para os lados e os bracinhos soltos'},
+    {text:'sentad{g} no chão de frente para a câmera, com uma perninha esticada e a outra levemente dobrada, bracinhos ao lado do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, em postura ereta, com os bracinhos relaxados e afastados do tronco'},
+    {text:'sentad{g} no chão de frente para a câmera, com o tronco levemente inclinado para um dos lados e a mãozinha apoiada no chão'},
+    {text:'sentad{g} no chão de frente para a câmera, com as perninhas levemente abertas e os bracinhos soltos, sem cobrir a roupa'},
+    {text:'sentad{g} no chão de frente para a câmera, com os ombros relaxados e os bracinhos caídos naturalmente ao lado do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, com as perninhas cruzadas de leve e os bracinhos soltos ao lado do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, com uma das mãozinhas apoiada no chão um pouco atrás do quadril'},
+    {text:'sentad{g} no chão de frente para a câmera, com o corpo centralizado e simétrico, os bracinhos ao lado do tronco'},
+    {text:'sentad{g} no chão de frente para a câmera, com as perninhas esticadas e relaxadas, os bracinhos levemente afastados do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, com o peso levemente apoiado em uma das mãozinhas ao lado do corpo'},
+    {text:'sentad{g} no chão de frente para a câmera, com as costas eretas e os bracinhos soltos, deixando a roupa totalmente visível'},
+    {text:'sentad{g} no chão de frente para a câmera, com os pezinhos relaxados à frente e os bracinhos ao lado do quadril'}
+  ],
+  // ---------- BEBÊ EM PÉ ----------
+  bebe_pe: [
+    {text:'em pé de frente para a câmera, com os bracinhos soltos ao lado do corpo'},
+    {text:'em pé, com as perninhas levemente afastadas e os bracinhos relaxados'},
+    {text:'em pé de frente, com os ombros soltos e os bracinhos caídos naturalmente'},
+    {text:'em pé, com um dos pezinhos ligeiramente à frente do outro'},
+    {text:'em pé de frente, com os bracinhos levemente afastados do tronco'},
+    {text:'em pé, com o corpo levemente girado para um dos lados'},
+    {text:'em pé de frente, em postura ereta e natural, com os bracinhos soltos'},
+    {text:'em pé, com o peso apoiado de leve em uma das perninhas'},
+    {text:'em pé de frente, com os bracinhos relaxados, deixando a roupa totalmente visível'},
+    {text:'em pé, com as perninhas paralelas e os bracinhos soltos ao lado do corpo'},
+    {text:'em pé de três quartos, com os bracinhos relaxados ao lado do corpo'},
+    {text:'em pé, em um passinho contido, como se estivesse dando um passo natural'},
+    {text:'em pé de frente, com os ombros levemente para trás e os bracinhos soltos'},
+    {text:'em pé, com o tronco levemente inclinado para um dos lados e os bracinhos relaxados'},
+    {text:'em pé de frente, com os bracinhos ao lado do corpo e as mãozinhas levemente abertas'}
+  ],
+  // ---------- CRIANÇA EM PÉ ----------
   crianca: [
-    {text:'com o peso apoiado suavemente em uma perna, a outra levemente relaxada'},
-    {text:'com as mãos soltas ao longo do corpo, os ombros naturalmente relaxados'},
-    {text:'com o corpo levemente inclinado em direção à câmera, em um giro sutil'},
-    {text:'com uma mão apoiada de leve no bolso, o corpo em um ângulo natural'},
-    {text:'com um pé levemente à frente do outro, em um passo contido, quase em movimento'},
-    {text:'com os braços soltos e o queixo em posição natural, em postura ereta e tranquila'},
-    {text:'com o corpo voltado de perfil, o rosto direcionado suavemente para a câmera'},
-    {text:'com uma mão tocando de leve a barra da própria roupa, o corpo em postura natural'},
-    {text:'com uma mão apoiada de leve na cintura, em uma postura suave e descontraída', genders:['f']},
-    {text:'com as mãos unidas atrás do corpo, em postura ereta e serena'},
-    {text:'com o corpo levemente girado, um ombro mais à frente que o outro, em pose natural'},
-    {text:'com as mãos soltas nos bolsos, o peso distribuído nas duas pernas'},
-    {text:'com um braço dobrado apoiando a mão no quadril, em postura confiante', genders:['f']},
-    {text:'com o corpo em um leve salto contido, como se estivesse em movimento espontâneo'},
-    {text:'com o corpo levemente inclinado para frente, as mãos apoiadas de leve sobre os joelhos, em pose descontraída'},
-    {text:'com as mãos soltas atrás da nuca, em uma postura descontraída e brincalhona', genders:['m']}
+    {text:'em pé, com o peso apoiado suavemente em uma perna e a outra levemente relaxada'},
+    {text:'em pé, com os braços soltos ao longo do corpo e os ombros relaxados'},
+    {text:'em pé, com o corpo levemente girado para um dos lados, ombros relaxados'},
+    {text:'em pé, com um pé levemente à frente do outro, em um passo contido'},
+    {text:'em pé, com as mãos unidas atrás do corpo, em postura ereta'},
+    {text:'em pé, com os braços levemente afastados do tronco, deixando a roupa totalmente visível'},
+    {text:'em pé, em postura ereta e simétrica, com os braços soltos ao lado do corpo'},
+    {text:'em pé, com um ombro levemente mais à frente que o outro, em um giro sutil'},
+    {text:'em pé, com o corpo de três quartos para a câmera e os braços relaxados'},
+    {text:'em pé, com as pernas levemente afastadas e os braços soltos ao lado do corpo'},
+    {text:'em pé, com o quadril levemente rotacionado e os braços caídos naturalmente'},
+    {text:'em pé, com uma das mãos apoiada de leve na cintura e o outro braço solto ao lado do corpo', genders:['f']},
+    {text:'em pé, com os braços relaxados e as mãos levemente abertas ao lado do corpo'},
+    {text:'em pé, em passada contida, como se estivesse caminhando com naturalidade'},
+    {text:'em pé, com o peso distribuído nas duas pernas e os ombros abertos'},
+    {text:'em pé, com uma perna levemente cruzada à frente da outra e os braços soltos'},
+    {text:'em pé de perfil, com os braços soltos ao lado do corpo'},
+    {text:'em pé, com os calcanhares próximos e as pontas dos pés levemente abertas, braços relaxados'},
+    {text:'em pé, com os braços um pouco afastados do corpo, marcando bem a silhueta da roupa'},
+    {text:'em pé, com o tronco ereto e o peso levemente deslocado para trás, braços soltos'}
   ],
+  // ---------- JUVENIL ----------
   juvenil: [
-    {text:'com o peso do corpo apoiado em uma perna, em uma postura descontraída e ereta'},
-    {text:'com as mãos soltas nos bolsos, os ombros relaxados'},
-    {text:'com um braço levemente dobrado ao lado do corpo, a mão próxima ao quadril, sem cobrir a roupa'},
-    {text:'com o corpo levemente girado, o rosto voltado para a câmera em um ângulo natural'},
-    {text:'em um passo contido, como se estivesse em movimento natural pela cena'},
-    {text:'com as mãos levemente unidas atrás do corpo, o peso distribuído com naturalidade'},
-    {text:'com os braços soltos ao longo do corpo, em postura ereta e confiante'},
-    {text:'com uma mão tocando de leve o tecido da própria roupa, em um gesto discreto'},
-    {text:'com uma mão apoiada de leve na cintura, em uma postura suave e natural', genders:['f']},
-    {text:'com um ombro levemente mais alto que o outro, o corpo em um ângulo despojado'},
-    {text:'com uma mão segurando de leve a alça da própria roupa, em postura relaxada'},
-    {text:'com o corpo apoiado de lado, como se estivesse encostad{g} em uma superfície imaginária'},
-    {text:'com as mãos soltas atrás das costas, o queixo levemente erguido, em postura confiante'},
-    {text:'com um pé apontado para o lado, o peso na perna oposta, em pose descontraída'}
+    {text:'em pé, com o peso do corpo apoiado em uma perna, em postura descontraída e ereta'},
+    {text:'em pé, com os braços soltos ao longo do corpo e os ombros relaxados'},
+    {text:'em pé, com o corpo levemente girado em um ângulo natural'},
+    {text:'em pé, em um passo contido, como se estivesse em movimento natural'},
+    {text:'em pé, com as mãos levemente unidas atrás do corpo e o peso distribuído com naturalidade'},
+    {text:'em pé, com os braços soltos e levemente afastados do tronco, em postura ereta e confiante'},
+    {text:'em pé, com uma das mãos apoiada de leve na cintura e o outro braço solto', genders:['f']},
+    {text:'em pé, com um ombro levemente mais alto que o outro, o corpo em ângulo despojado'},
+    {text:'em pé, com o corpo de três quartos para a câmera e os braços relaxados ao lado do corpo'},
+    {text:'em pé, com um pé apontado levemente para o lado e o peso na perna oposta'},
+    {text:'em pé, com o quadril levemente rotacionado e os braços caídos naturalmente'},
+    {text:'em pé, em postura ereta e simétrica, com os braços soltos e as mãos relaxadas'},
+    {text:'em pé, com as pernas levemente afastadas e os ombros abertos'},
+    {text:'em pé de perfil, com os braços relaxados ao lado do corpo'},
+    {text:'em pé, com uma perna levemente cruzada à frente da outra, braços soltos ao lado do corpo'},
+    {text:'em pé, com os braços afastados alguns centímetros do tronco, deixando a modelagem da roupa visível'},
+    {text:'em pé, com o tronco ereto e os braços relaxados ao longo do corpo'},
+    {text:'em pé, com o peso levemente deslocado para uma das pernas e o joelho oposto solto'},
+    {text:'em pé, com os ombros levemente para trás e a postura alongada, braços soltos'}
   ],
+  // ---------- ADULTO ----------
   adulto: [
-    {text:'com o peso apoiado em uma perna, o quadril levemente rotacionado em um ângulo sutil'},
-    {text:'com as mãos soltas ao longo do corpo, os ombros abertos e relaxados'},
-    {text:'com um braço levemente dobrado, a mão repousando perto do tecido da roupa'},
-    {text:'com o corpo em um giro suave de perfil, o rosto voltado para a câmera'},
-    {text:'em passada contida, como se estivesse caminhando naturalmente pela cena'},
-    {text:'com os braços soltos e o corpo levemente apoiado no próprio eixo, em postura relaxada'},
-    {text:'com o corpo voltado três quartos para a câmera, o peso distribuído com naturalidade'},
-    {text:'com uma mão tocando de leve o tecido da manga, em um gesto natural e discreto'},
-    {text:'com uma mão apoiada de leve na cintura, em uma postura elegante e contida', genders:['f']},
-    {text:'com as mãos soltas nos bolsos, o olhar direcionado com naturalidade para a câmera'},
-    {text:'com um ombro levemente inclinado em direção à câmera, o corpo em postura ereta'},
-    {text:'com as mãos soltas atrás do corpo, o queixo em posição natural e confiante'},
-    {text:'com uma mão apoiada de leve no ombro oposto, em um gesto contido', genders:['f']},
-    {text:'com o corpo apoiado de lado, um cotovelo levemente flexionado, em pose descontraída'},
-    {text:'com um pé à frente do outro, o peso levemente inclinado para trás, em postura elegante'}
+    {text:'em pé, com o peso apoiado em uma perna e o quadril levemente rotacionado em ângulo sutil'},
+    {text:'em pé, com as mãos soltas ao longo do corpo e os ombros abertos e relaxados'},
+    {text:'em pé, com o corpo em um giro suave de perfil'},
+    {text:'em pé, em passada contida, como se estivesse caminhando naturalmente'},
+    {text:'em pé, com os braços soltos e o corpo apoiado no próprio eixo, em postura relaxada'},
+    {text:'em pé, com o corpo voltado três quartos para a câmera e o peso distribuído com naturalidade'},
+    {text:'em pé, com uma das mãos apoiada de leve na cintura e o outro braço solto ao lado do corpo', genders:['f']},
+    {text:'em pé, com um ombro levemente inclinado em direção à câmera e o corpo em postura ereta'},
+    {text:'em pé, com as mãos soltas atrás do corpo e os ombros relaxados'},
+    {text:'em pé, com um pé à frente do outro e o peso levemente inclinado para trás'},
+    {text:'em pé, em postura ereta e simétrica, com os braços relaxados ao lado do corpo'},
+    {text:'em pé, com os braços levemente afastados do tronco, deixando o caimento da roupa visível'},
+    {text:'em pé, com as pernas levemente afastadas e os ombros alinhados'},
+    {text:'em pé, com uma perna levemente cruzada à frente da outra e os braços soltos'},
+    {text:'em pé de perfil, com os braços soltos ao lado do corpo'},
+    {text:'em pé, com o peso deslocado para uma das pernas e o joelho oposto levemente solto'},
+    {text:'em pé, com a postura alongada e os ombros levemente para trás, braços relaxados'},
+    {text:'em pé, com os calcanhares alinhados e as pontas dos pés levemente abertas, braços soltos'},
+    {text:'em pé, com o tronco ereto e os braços caídos com naturalidade, sem tensão nos ombros'},
+    {text:'em pé, com o corpo levemente angulado e o peso apoiado no pé de trás'},
+    {text:'em pé, com uma das mãos apoiada de leve no quadril e o outro braço solto', genders:['f']}
   ]
 };
-const expressionBank = {
-  bebe: [
-    'um sorriso leve e espontâneo','um sorriso aberto e alegre','uma risadinha leve, sem exagero',
-    'um sorriso largo e contagiante','um sorrisinho tímido e doce','um sorriso solto, de pura alegria',
-    'um sorriso suave, quase adormecendo de tão tranquilo','uma risada leve, com os olhinhos semicerrados',
-    'um olhar curioso direcionado para longe da câmera','uma expressão tranquila e serena',
-    'um olhar atento, focado em um ponto além da câmera'
-  ],
-  crianca: [
-    'um sorriso leve e natural','um sorriso aberto e espontâneo','um sorriso largo, natural e alegre',
-    'um sorriso solto e divertido','uma risada contida, genuína','um sorriso brincalhão, cheio de energia',
-    'um sorriso largo, com covinhas aparecendo','um meio sorriso espontâneo, cheio de leveza',
-    'um sorriso doce, com o olhar suave','um olhar sereno direcionado para a câmera',
-    'uma expressão tranquila, quase pensativa'
-  ],
-  juvenil: [
-    'um sorriso aberto e natural','um sorriso largo e confiante','um sorriso solto, descontraído',
-    'um meio sorriso discreto, mas genuíno','um sorriso confiante, com o olhar direto',
-    'um sorriso espontâneo, cheio de leveza','um sorriso contido, quase imperceptível',
-    'um olhar confiante e sereno','uma expressão neutra e segura',
-    'um olhar direcionado suavemente para fora de quadro'
-  ],
-  adulto: [
-    'um sorriso aberto e natural','um sorriso largo, natural e confiante','um sorriso solto e genuíno',
-    'um meio sorriso discreto e natural','um sorriso confiante, com o olhar direto à câmera',
-    'um sorriso sutil, elegante e natural','um olhar sereno e direto',
-    'uma expressão neutra e confiante','uma expressão contida, sem tensão no rosto',
-    'um olhar direcionado para além da câmera, com serenidade'
-  ]
-};
-const moodBank = {
-  infantil: ['em um clima leve e afetuoso','com uma atmosfera descontraída e lúdica','em uma atmosfera simples e alegre, sem exageros','com um ar espontâneo, típico de criança em movimento'],
-  feminina_adulta: ['em um clima delicado e elegante','com uma atmosfera suave e sofisticada','em uma atmosfera graciosa e refinada','com um ar contemporâneo e confiante'],
-  masculina_adulta: ['em um clima sóbrio e confiante','com uma atmosfera despojada e segura','em uma atmosfera contida, com presença natural','com um ar moderno e discreto']
-};
-const poseTemplates = [
-  (sujCap,pose,expr,mood)=>`${sujCap} aparece ${pose}, trazendo ${expr}, ${mood}.`,
-  (sujCap,pose,expr,mood)=>`${sujCap} surge ${pose}, exibindo ${expr}, ${mood}.`,
-  (sujCap,pose,expr,mood,sujLow)=>`Em pose natural, ${sujLow} está ${pose}, revelando ${expr}, ${mood}.`
+
+// ---------- ÂNGULOS DE CABEÇA ----------
+const HEAD_BEBE = [
+  'cabecinha em posição natural, rosto voltado de frente para a câmera',
+  'cabecinha levemente inclinada para o lado direito, olhar na câmera',
+  'cabecinha levemente inclinada para o lado esquerdo, olhar na câmera',
+  'rosto de frente, com o olhar direto na lente',
+  'cabecinha levemente erguida, rosto voltado para a câmera',
+  'queixinho levemente abaixado, olhar voltado para a câmera',
+  'rosto levemente girado para o lado, olhar voltado para a câmera',
+  'cabecinha reta e alinhada com os ombros, olhar sereno na direção da lente',
+  'rosto de frente, com o olhar levemente acima da lente',
+  'cabecinha levemente inclinada, rosto em três quartos voltado para a câmera',
+  'rosto voltado de frente, com o olhar tranquilo e atento na câmera',
+  'cabecinha em posição natural, olhar direcionado suavemente para o lado'
 ];
+const HEAD_GERAL = [
+  'cabeça em posição natural, rosto voltado de frente para a câmera',
+  'cabeça levemente inclinada para o lado direito, olhar na câmera',
+  'cabeça levemente inclinada para o lado esquerdo, olhar na câmera',
+  'rosto de frente, com o olhar direto na lente',
+  'rosto levemente girado para a direita, olhar voltado para a câmera',
+  'rosto levemente girado para a esquerda, olhar voltado para a câmera',
+  'queixo levemente abaixado, olhar direcionado à câmera',
+  'queixo em posição natural, olhar sereno na direção da lente',
+  'cabeça levemente erguida, rosto voltado para a câmera',
+  'rosto em três quartos, olhar voltado para a lente',
+  'cabeça alinhada com os ombros, olhar direto e natural',
+  'rosto de frente, com o olhar levemente direcionado para fora de quadro',
+  'cabeça em posição natural, olhar suave um pouco acima da lente',
+  'rosto levemente girado, com o queixo acompanhando a direção dos ombros'
+];
+const headBank = {
+  bebe_cilindro: HEAD_BEBE, bebe_chao: HEAD_BEBE, bebe_pe: HEAD_BEBE,
+  crianca: HEAD_GERAL, juvenil: HEAD_GERAL, adulto: HEAD_GERAL
+};
+
+// ---------- EXPRESSÕES (maioria clara de sorrisos) ----------
+const EXPR_BEBE = [
+  'sorriso leve e espontâneo',
+  'sorriso aberto e alegre',
+  'sorriso largo e contagiante',
+  'sorrisinho tímido e doce',
+  'sorriso solto, de pura alegria',
+  'risadinha leve, sem exagero',
+  'risada leve, com os olhinhos semicerrados',
+  'sorriso suave e tranquilo',
+  'sorriso natural, com as bochechas levemente elevadas',
+  'sorriso discreto, de canto de boca',
+  'sorriso simpático e relaxado',
+  'sorriso espontâneo, olhando para a câmera',
+  'sorriso meigo e sereno',
+  'rosto tranquilo e sereno',
+  'olhar curioso e atento',
+  'rosto neutro e relaxado'
+];
+const expressionBank = {
+  bebe_cilindro: EXPR_BEBE, bebe_chao: EXPR_BEBE, bebe_pe: EXPR_BEBE,
+  crianca: [
+    'sorriso leve e natural',
+    'sorriso aberto e espontâneo',
+    'sorriso largo, natural e alegre',
+    'sorriso solto e divertido',
+    'sorriso brincalhão, cheio de energia',
+    'sorriso largo, com covinhas aparecendo',
+    'meio sorriso espontâneo, cheio de leveza',
+    'sorriso doce, com o olhar suave',
+    'risada contida e genuína',
+    'sorriso simpático, com os olhos levemente semicerrados',
+    'sorriso confiante e natural',
+    'sorriso discreto, de canto de boca',
+    'sorriso relaxado, sem exagero',
+    'sorriso alegre, mostrando levemente os dentes',
+    'rosto tranquilo e sereno',
+    'olhar sereno direcionado para a câmera',
+    'rosto neutro e natural, sem tensão',
+    'olhar atento e calmo'
+  ],
+  juvenil: [
+    'sorriso aberto e natural',
+    'sorriso largo e confiante',
+    'sorriso solto e descontraído',
+    'meio sorriso discreto, mas genuíno',
+    'sorriso confiante, com o olhar direto',
+    'sorriso espontâneo, cheio de leveza',
+    'sorriso contido, quase imperceptível',
+    'sorriso simpático e relaxado',
+    'sorriso natural, com os olhos levemente semicerrados',
+    'sorriso leve, de canto de boca',
+    'sorriso tranquilo e sincero',
+    'sorriso alegre, sem exagero',
+    'sorriso suave, com o queixo relaxado',
+    'olhar confiante e sereno',
+    'rosto neutro e seguro',
+    'rosto calmo e natural, sem tensão',
+    'olhar direto e tranquilo'
+  ],
+  adulto: [
+    'sorriso aberto e natural',
+    'sorriso largo, natural e confiante',
+    'sorriso solto e genuíno',
+    'meio sorriso discreto e natural',
+    'sorriso confiante, com o olhar direto à câmera',
+    'sorriso sutil, elegante e natural',
+    'sorriso leve, de canto de boca',
+    'sorriso simpático e relaxado',
+    'sorriso tranquilo, com os olhos levemente semicerrados',
+    'sorriso natural, sem exagero',
+    'sorriso ameno e sereno',
+    'sorriso espontâneo, com o rosto relaxado',
+    'sorriso contido e elegante',
+    'olhar sereno e direto',
+    'rosto neutro e confiante',
+    'rosto contido, sem tensão aparente',
+    'olhar calmo direcionado à câmera'
+  ]
+};
+
 function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function pickRandomDifferent(arr, current){
+  if (!arr || arr.length <= 1) return pickRandom(arr);
+  let v, guard = 0;
+  do { v = pickRandom(arr); guard++; } while (v === current && guard < 20);
+  return v;
+}
 function capitalize(str){ return str.charAt(0).toUpperCase()+str.slice(1); }
 function fillGender(text, gender){ return text.split('{g}').join(gender==='f'?'a':'o'); }
-function defaultSegmento(category, genero){
-  if (category === 'adulto') return genero === 'menina' ? 'feminina_adulta' : 'masculina_adulta';
-  return 'infantil';
-}
 function defaultGender(genero){ return genero === 'menina' ? 'f' : 'm'; }
-function generatePoseText(category, genero, segmento){
+
+// Poses disponíveis pra uma categoria já filtradas pelo gênero — é aqui que a
+// regra "menino nunca com mão na cintura" é aplicada, via genders:['f'].
+function availablePoses(category, genero){
   const gender = defaultGender(genero);
-  const availablePoses = poseBank[category].filter(p => !p.genders || p.genders.includes(gender));
-  const pose = pickRandom(availablePoses);
-  const expr = pickRandom(expressionBank[category]);
-  const mood = pickRandom(moodBank[segmento]);
-  const tplIndex = Math.floor(Math.random()*poseTemplates.length);
-  const poseText = fillGender(pose.text, gender);
-  const sujLow = subjectLabel[category][gender];
-  const sujCap = capitalize(sujLow);
-  return poseTemplates[tplIndex](sujCap, poseText, expr, mood, sujLow);
+  const bank = poseBank[category] || poseBank.adulto;
+  return bank.filter(p => !p.genders || p.genders.includes(gender));
 }
-function generateExpressaoText(category){ return capitalize(pickRandom(expressionBank[category])); }
+function rollPoseText(category, genero, current){
+  const gender = defaultGender(genero);
+  const list = availablePoses(category, genero).map(p => fillGender(p.text, gender));
+  return pickRandomDifferent(list, current);
+}
+function rollHeadText(category, current){
+  return pickRandomDifferent(headBank[category] || HEAD_GERAL, current);
+}
+function rollExprText(category, current){
+  return pickRandomDifferent(expressionBank[category] || expressionBank.adulto, current);
+}
+
+// Sorteia os três eixos de uma vez.
+function generatePoseParts(category, genero, isExpressaoOnly){
+  if (isExpressaoOnly) return {pose:'', cabeca:'', expr: rollExprText(category)};
+  return {
+    pose: rollPoseText(category, genero),
+    cabeca: rollHeadText(category),
+    expr: rollExprText(category)
+  };
+}
+// Monta a frase final. Formato fixo: "Pose: ... Expressão: ..." — sem menção a
+// ambiente, clima ou cenário (isso já vem no fechamento técnico do prompt).
+function composePoseText(parts, isExpressaoOnly){
+  if (!parts) return '';
+  if (isExpressaoOnly) return `Expressão: ${parts.expr}.`;
+  const corpo = [parts.pose, parts.cabeca].filter(Boolean).join(', ');
+  return `Pose: ${corpo}. Expressão: ${parts.expr}.`;
+}
+// Total de combinações possíveis — usado só como informação na interface.
+function countCombos(category, genero, isExpressaoOnly){
+  const e = (expressionBank[category] || []).length;
+  if (isExpressaoOnly) return e;
+  return availablePoses(category, genero).length * (headBank[category] || []).length * e;
+}
 
 // Sorteia uma pose/expressão inicial e já preenche o segmento no prompt (em vez
 // de deixar "[POSE A DEFINIR]"/"[EXPRESSÃO A DEFINIR]" esperando um clique manual).
@@ -1021,15 +1320,40 @@ function generateExpressaoText(category){ return capitalize(pickRandom(expressio
 function autoFillPose(result){
   const poseSeg = result.segments.find(s => s.isPose);
   if (!poseSeg) return;
-  const segmento = defaultSegmento(result.category, result.genero);
-  const text = result.isExpressaoOnly
-    ? generateExpressaoText(result.category)
-    : generatePoseText(result.category, result.genero, segmento);
+  const category = resolvePoseCategory(result);
+  const parts = generatePoseParts(category, result.genero, result.isExpressaoOnly);
+  const text = composePoseText(parts, result.isExpressaoOnly);
   poseSeg.text = text;
   poseSeg.filled = true;
   poseSeg.hl = false;
   result.autoPoseText = text;
-  result.autoPoseSegmento = segmento;
+  result.autoPoseParts = parts;
+}
+
+// Estado do painel de pose de um card. Guarda os três eixos separadamente, o
+// que permite re-sortear só a pose, só o ângulo de cabeça ou só a expressão.
+function makePoseState(r){
+  const parts = r.autoPoseParts || {pose:'', cabeca:'', expr:''};
+  const hasParts = !!(parts.pose || parts.expr);
+  return {
+    parts: {...parts},
+    history: hasParts ? [{...parts}] : [],
+    historyIndex: hasParts ? 0 : -1,
+    undoStack: []
+  };
+}
+
+// Prompts salvos no banco voltam só como HTML. Pra reconstruir qual postura de
+// bebê estava selecionada, procuramos a frase-base dentro do HTML salvo.
+function detectPosturaFromHtml(html){
+  if (!html) return null;
+  const txt = String(html).replace(/<[^>]*>/g, ' ');
+  let best = null, bestLen = -1;
+  for (const [key, cfg] of Object.entries(BEBE_POSTURAS)){
+    // a frase mais longa vence, pra evitar casar por engano com um trecho comum
+    if (txt.indexOf(cfg.base) !== -1 && cfg.base.length > bestLen){ best = key; bestLen = cfg.base.length; }
+  }
+  return best;
 }
 
 // ================= Persistência (Supabase) =================
@@ -1116,9 +1440,11 @@ async function loadClientData(clientId){
   window.__lastResults = (refsResp.data || []).map(row => ({
     dbId: row.id,
     codigo: row.codigo,
+    variante: (row.raw && row.raw.variante) || '',
     grade: row.grade,
     genero: row.genero,
     category: POSE_CATEGORY_BY_GRADE[row.grade] || 'adulto',
+    posturaBebe: row.grade === 'Bebê' ? (detectPosturaFromHtml(row.prompt_html) || BEBE_POSTURA_PADRAO) : undefined,
     isExpressaoOnly: GRADES_SO_EXPRESSAO.has(row.grade),
     source: row.source_pdf,
     hasPhotos: row.has_photos,
@@ -1127,7 +1453,7 @@ async function loadClientData(clientId){
     notes: []
   }));
 
-  poseStates = window.__lastResults.map(r => ({segmento: r.autoPoseSegmento || defaultSegmento(r.category, r.genero), history: r.autoPoseText ? [r.autoPoseText] : [], historyIndex: r.autoPoseText ? 0 : -1}));
+  poseStates = window.__lastResults.map(r => makePoseState(r));
   renderResults(window.__lastResults, []);
   wireAutosave();
 
@@ -1270,7 +1596,7 @@ processBtn.addEventListener('click', async () => {
   }
 
   window.__lastResults = mergedResults;
-  poseStates = mergedResults.map(r => ({segmento: r.autoPoseSegmento || defaultSegmento(r.category, r.genero), history: r.autoPoseText ? [r.autoPoseText] : [], historyIndex: r.autoPoseText ? 0 : -1}));
+  poseStates = mergedResults.map(r => makePoseState(r));
   renderResults(mergedResults, allWarnings);
 
   if (window.__currentClient){
@@ -1310,11 +1636,15 @@ function renderResults(results, warnings){
 
   const resultsEl = document.getElementById('results');
   resultsEl.innerHTML = results.map((r, i) => `
-    <div class="card" data-idx="${i}">
+    <div class="card${isGerado(r) ? ' gerado' : ''}" data-idx="${i}">
       <div class="card-head">
         <input type="checkbox" class="ref-check" data-idx="${i}" style="display:${refSelectMode ? 'inline-block' : 'none'};" ${selectedRefIndices.has(i) ? 'checked' : ''}>
-        <span class="code">Ref. ${r.codigo}</span>
+        <span class="code">Ref. ${r.codigo}${getVariante(r) ? ` <span class="variante">| ${escapeHtml(getVariante(r))}</span>` : ''}</span>
         <span class="meta">${r.grade} · ${r.genero} · ${r.source}</span>
+        <label class="gerado-toggle${isGerado(r) ? ' checked' : ''}" id="gerado-toggle-${i}" title="Marcar esta referência como já finalizada no lookbook">
+          <input type="checkbox" id="gerado-check-${i}" ${isGerado(r) ? 'checked' : ''} onchange="toggleGerado(${i})">
+          ✅ Lookbook Gerado
+        </label>
       </div>
       ${r.hasPhotos ? `<div><span class="photo-badge">📷 Contém imagem de referência</span>${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button>` : ''}</div>`
         : ((r.raw && r.raw.obs && r.raw.obs.trim()) ? `<div><button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button></div>` : '')}
@@ -1326,26 +1656,46 @@ function renderResults(results, warnings){
         <button class="pose-toggle" onclick="togglePosePanel(${i})">${r.isExpressaoOnly ? 'Definir expressão' : 'Definir pose'}</button>
       </div>
       <div class="pose-panel" id="pose-panel-${i}">
-        ${r.isExpressaoOnly ? `<p class="pose-label">Expressão (categoria bebê — sem pose/mood)</p>` : `
-          <p class="pose-label">Segmento de moda</p>
-          <div class="pose-pills" id="pose-segmento-${i}"></div>
-        `}
+        ${isBebeGrade(r) ? `
+          <p class="pose-label">Postura base do bebê</p>
+          <div class="pose-pills" id="pose-postura-${i}"></div>
+        ` : ''}
+        <p class="pose-label">${r.isExpressaoOnly ? 'Expressão (RN — só expressão, sem pose)' : 'Sorteio · pose, ângulo de cabeça e expressão'}</p>
+        <div class="pose-axes">
+          ${r.isExpressaoOnly ? '' : `
+          <div class="pose-axis">
+            <span class="axis-tag">Pose</span>
+            <span class="axis-text" id="axis-pose-${i}">—</span>
+            <button class="axis-dice" onclick="rollAxis(${i},'pose')" title="Sortear outra pose">🎲</button>
+          </div>
+          <div class="pose-axis">
+            <span class="axis-tag">Cabeça</span>
+            <span class="axis-text" id="axis-cabeca-${i}">—</span>
+            <button class="axis-dice" onclick="rollAxis(${i},'cabeca')" title="Sortear outro ângulo de cabeça">🎲</button>
+          </div>`}
+          <div class="pose-axis">
+            <span class="axis-tag">Expressão</span>
+            <span class="axis-text" id="axis-expr-${i}">—</span>
+            <button class="axis-dice" onclick="rollAxis(${i},'expr')" title="Sortear outra expressão">🎲</button>
+          </div>
+        </div>
         <div class="pose-nav">
-          <button onclick="prevPose(${i})" id="pose-prev-${i}" disabled title="Anterior">←</button>
+          <button onclick="prevPose(${i})" id="pose-prev-${i}" disabled title="Combinação anterior">←</button>
           <span class="pose-result" id="pose-result-${i}">Clique em gerar pra ver uma opção.</span>
-          <button onclick="nextPose(${i})" id="pose-next-${i}" disabled title="Próxima">→</button>
+          <button onclick="nextPose(${i})" id="pose-next-${i}" disabled title="Próxima combinação">→</button>
         </div>
         <div class="pose-btn-row">
-          <button class="pose-gen-btn" onclick="rollPose(${i})">Gerar</button>
+          <button class="pose-gen-btn" onclick="rollPose(${i})">🎲 Sortear tudo</button>
           <button class="pose-use-btn" id="pose-use-${i}" disabled onclick="usePose(${i})">Inserir no prompt</button>
           <button class="pose-use-btn" id="pose-undo-${i}" disabled onclick="undoPoseInsert(${i})" title="Volta pra pose que estava antes desta última inserção">↩️ Desfazer</button>
+          <span class="combo-count" id="combo-count-${i}"></span>
         </div>
       </div>
     </div>
   `).join('');
 
-  results.forEach((r, i) => { if (!r.isExpressaoOnly) renderSegmentoPills(i, r.category); });
-  results.forEach((r, i) => { if (poseStates[i] && poseStates[i].history.length) updatePoseNav(i); });
+  results.forEach((r, i) => { if (isBebeGrade(r)) renderPosturaPills(i); });
+  results.forEach((r, i) => { updatePoseNav(i); });
 
   resultsEl.querySelectorAll('.ref-check').forEach(cb => {
     cb.addEventListener('click', e => e.stopPropagation());
@@ -1357,20 +1707,71 @@ function renderResults(results, warnings){
   });
 }
 
-function renderSegmentoPills(i, category){
-  const el = document.getElementById(`pose-segmento-${i}`);
+// Pills de postura base do bebê. Trocar a pill reescreve a frase inicial do
+// prompt E passa a sortear no banco de poses correspondente.
+function renderPosturaPills(i){
+  const el = document.getElementById(`pose-postura-${i}`);
+  if (!el) return;
+  const r = window.__lastResults[i];
+  const atual = r.posturaBebe || BEBE_POSTURA_PADRAO;
   el.innerHTML = '';
-  Object.entries(segmentoLabels).forEach(([value, label]) => {
+  Object.entries(BEBE_POSTURAS).forEach(([value, cfg]) => {
     const btn = document.createElement('button');
     btn.type = 'button'; btn.className = 'pose-pill';
-    btn.setAttribute('aria-checked', value === poseStates[i].segmento ? 'true' : 'false');
-    btn.textContent = label;
-    btn.addEventListener('click', () => { poseStates[i].segmento = value; renderSegmentoPills(i, category); });
+    btn.setAttribute('aria-checked', value === atual ? 'true' : 'false');
+    btn.textContent = cfg.label;
+    btn.addEventListener('click', () => setPosturaBebe(i, value));
     el.appendChild(btn);
   });
 }
+
+// Troca a postura do bebê: reescreve a frase-base dentro do prompt (usando o
+// marcador data-pose-base quando existe, ou casando o texto da frase antiga em
+// prompts salvos antes desta versão) e limpa o histórico de sorteios, já que o
+// banco de poses mudou.
+function setPosturaBebe(i, value){
+  const r = window.__lastResults[i];
+  if (!r || !BEBE_POSTURAS[value]) return;
+  const anterior = r.posturaBebe || BEBE_POSTURA_PADRAO;
+  if (anterior === value) return;
+  const novaBase = BEBE_POSTURAS[value].base;
+  const box = document.getElementById(`prompt-${i}`);
+
+  let trocou = false;
+  if (box){
+    const marcador = box.querySelector('[data-pose-base]');
+    if (marcador){
+      marcador.textContent = `O modelo da imagem de referência, sem mudar a aparência. ${novaBase}`;
+      trocou = true;
+    } else {
+      // prompt salvo antes do marcador existir: troca por casamento de texto
+      const alvo = BEBE_POSTURAS[anterior].base;
+      const candidatas = [alvo, ...TODAS_BASES];
+      for (const base of candidatas){
+        if (box.innerHTML.indexOf(base) !== -1){
+          box.innerHTML = box.innerHTML.split(base).join(novaBase);
+          trocou = true; break;
+        }
+      }
+    }
+  }
+
+  r.posturaBebe = value;
+  poseStates[i] = makePoseState({});
+  renderPosturaPills(i);
+  updatePoseNav(i);
+  if (trocou) saveCardPrompt(i);
+  else console.warn('Não encontrei a frase base pra trocar — a postura foi trocada só no sorteio de poses.');
+}
 function escapeHtml(str){
   return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+// Nome da variante do produto (quando a ficha tiver esse campo preenchido).
+// Cobre tanto resultados recém-processados (r.variante) quanto os carregados
+// do Supabase, onde o campo só existe dentro do JSON bruto salvo (r.raw.variante).
+function getVariante(r){
+  const v = (r && r.variante) || (r && r.raw && r.raw.variante) || '';
+  return String(v).trim();
 }
 function toggleObs(i){
   const panel = document.getElementById(`obs-panel-${i}`);
@@ -1378,22 +1779,83 @@ function toggleObs(i){
 }
 function togglePosePanel(i){ document.getElementById(`pose-panel-${i}`).classList.toggle('open'); }
 
-function updatePoseNav(i){
-  const st = poseStates[i];
-  document.getElementById(`pose-prev-${i}`).disabled = st.historyIndex <= 0;
-  document.getElementById(`pose-next-${i}`).disabled = st.historyIndex >= st.history.length - 1;
-  document.getElementById(`pose-result-${i}`).textContent = st.history[st.historyIndex] || '';
-  document.getElementById(`pose-use-${i}`).disabled = st.historyIndex < 0;
-}
-function rollPose(i){
+// Texto atualmente montado no painel (o que vai ser inserido no prompt).
+function currentPoseText(i){
   const r = window.__lastResults[i];
-  const text = r.isExpressaoOnly ? generateExpressaoText(r.category) : generatePoseText(r.category, r.genero, poseStates[i].segmento);
+  const st = poseStates[i];
+  if (!r || !st || st.historyIndex < 0) return '';
+  return composePoseText(st.history[st.historyIndex], r.isExpressaoOnly);
+}
+
+function updatePoseNav(i){
+  const r = window.__lastResults[i];
+  const st = poseStates[i];
+  if (!r || !st) return;
+  const prevBtn = document.getElementById(`pose-prev-${i}`);
+  if (!prevBtn) return; // card ainda não renderizado
+  const parts = st.history[st.historyIndex] || {pose:'', cabeca:'', expr:''};
+
+  prevBtn.disabled = st.historyIndex <= 0;
+  document.getElementById(`pose-next-${i}`).disabled = st.historyIndex >= st.history.length - 1;
+  document.getElementById(`pose-use-${i}`).disabled = st.historyIndex < 0;
+
+  const resultEl = document.getElementById(`pose-result-${i}`);
+  resultEl.textContent = currentPoseText(i) || 'Clique em sortear pra ver uma opção.';
+
+  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val || '—'; };
+  set(`axis-pose-${i}`, parts.pose);
+  set(`axis-cabeca-${i}`, parts.cabeca);
+  set(`axis-expr-${i}`, parts.expr);
+
+  const comboEl = document.getElementById(`combo-count-${i}`);
+  if (comboEl){
+    const total = countCombos(resolvePoseCategory(r), r.genero, r.isExpressaoOnly);
+    comboEl.textContent = `${total.toLocaleString('pt-BR')} combinações possíveis`;
+  }
+}
+
+// Guarda uma nova combinação no histórico (descartando o "futuro" quando o
+// usuário voltou com a seta e sorteou de novo).
+function pushPoseParts(i, parts){
   const st = poseStates[i];
   st.history = st.history.slice(0, st.historyIndex + 1);
-  st.history.push(text);
+  st.history.push({...parts});
   st.historyIndex = st.history.length - 1;
+  st.parts = {...parts};
   updatePoseNav(i);
 }
+
+// Sorteia os três eixos de uma vez.
+function rollPose(i){
+  const r = window.__lastResults[i];
+  const st = poseStates[i];
+  const category = resolvePoseCategory(r);
+  const atual = st.history[st.historyIndex] || {};
+  // passa os valores atuais pra não sortear exatamente a mesma coisa de novo
+  const parts = r.isExpressaoOnly
+    ? {pose:'', cabeca:'', expr: rollExprText(category, atual.expr)}
+    : {
+        pose: rollPoseText(category, r.genero, atual.pose),
+        cabeca: rollHeadText(category, atual.cabeca),
+        expr: rollExprText(category, atual.expr)
+      };
+  pushPoseParts(i, parts);
+}
+
+// Re-sorteia UM eixo só, mantendo os outros dois. É isso que permite travar uma
+// pose boa e ficar variando só a expressão, por exemplo.
+function rollAxis(i, axis){
+  const r = window.__lastResults[i];
+  const st = poseStates[i];
+  const category = resolvePoseCategory(r);
+  const base = st.history[st.historyIndex] || generatePoseParts(category, r.genero, r.isExpressaoOnly);
+  const next = {...base};
+  if (axis === 'pose') next.pose = rollPoseText(category, r.genero, base.pose);
+  else if (axis === 'cabeca') next.cabeca = rollHeadText(category, base.cabeca);
+  else next.expr = rollExprText(category, base.expr);
+  pushPoseParts(i, next);
+}
+
 function prevPose(i){ const st = poseStates[i]; if (st.historyIndex > 0){ st.historyIndex--; updatePoseNav(i); } }
 function nextPose(i){ const st = poseStates[i]; if (st.historyIndex < st.history.length - 1){ st.historyIndex++; updatePoseNav(i); } }
 
@@ -1406,7 +1868,7 @@ function updateUndoButton(i){
 
 function usePose(i){
   const box = document.getElementById(`prompt-${i}`);
-  const text = poseStates[i].history[poseStates[i].historyIndex];
+  const text = currentPoseText(i);
   if (!text) return;
 
   if (!poseStates[i].undoStack) poseStates[i].undoStack = [];
@@ -1417,7 +1879,8 @@ function usePose(i){
     poseStates[i].undoStack.push({ wasPlaceholder: true, text: firstTimeSlot.textContent });
     firstTimeSlot.removeAttribute('data-pose-slot');
     firstTimeSlot.setAttribute('data-pose-value', '1');
-    firstTimeSlot.classList.remove('hl');
+    firstTimeSlot.classList.remove('hl', 'pose-hl');
+    firstTimeSlot.classList.add('pose-filled');
     firstTimeSlot.textContent = text;
   } else {
     const existingSlot = box.querySelector('[data-pose-value]');
@@ -1446,7 +1909,8 @@ function undoPoseInsert(i){
   if (last.wasPlaceholder){
     valueSlot.removeAttribute('data-pose-value');
     valueSlot.setAttribute('data-pose-slot', '1');
-    valueSlot.classList.add('hl');
+    valueSlot.classList.remove('pose-filled');
+    valueSlot.classList.add('pose-hl');
     valueSlot.textContent = last.text;
   } else {
     valueSlot.textContent = last.text;
@@ -1454,9 +1918,49 @@ function undoPoseInsert(i){
   updateUndoButton(i);
   saveCardPrompt(i);
 }
+// ================= Toast de confirmação =================
+function showToast(text){
+  const wrap = document.getElementById('toastWrap');
+  if (!wrap) return;
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = text;
+  wrap.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 250);
+  }, 2200);
+}
+
 function copyPrompt(i){
   const box = document.getElementById(`prompt-${i}`);
+  const r = window.__lastResults && window.__lastResults[i];
   navigator.clipboard.writeText(box.innerText);
+  showToast(`Referência ${r ? r.codigo : ''} copiada`);
+}
+
+// ================= Lookbook gerado (marcador de conclusão por referência) =================
+// Guardado dentro do próprio JSON "raw" (coluna já existente no Supabase), sem
+// precisar de coluna nova no banco.
+function isGerado(r){ return !!(r && r.raw && r.raw.gerado); }
+function toggleGerado(i){
+  const r = window.__lastResults && window.__lastResults[i];
+  if (!r) return;
+  if (!r.raw) r.raw = {};
+  r.raw.gerado = !r.raw.gerado;
+
+  const card = document.querySelector(`.card[data-idx="${i}"]`);
+  const toggle = document.getElementById(`gerado-toggle-${i}`);
+  const checkbox = document.getElementById(`gerado-check-${i}`);
+  if (card) card.classList.toggle('gerado', r.raw.gerado);
+  if (toggle) toggle.classList.toggle('checked', r.raw.gerado);
+  if (checkbox) checkbox.checked = r.raw.gerado;
+
+  if (r.dbId){
+    sb.from('client_refs').update({ raw: r.raw, updated_at: new Date().toISOString() }).eq('id', r.dbId)
+      .then(({error}) => { if (error) console.warn('Falha ao salvar "Lookbook Gerado":', error); });
+  }
 }
 
 // ================= Nome de arquivo (cliente + data/hora) =================
@@ -1816,19 +2320,44 @@ function groupAndSortForExport(results){
   return withIndex;
 }
 
+// Converte o HTML editável do card em runs do docx, preservando negrito,
+// cor de destaque E as quebras de linha (blocos <div>, <p>, <br> e "\n").
+const BLOCK_TAGS = new Set(['DIV','P','SECTION','LI','BLOCKQUOTE']);
 function domToDocxRuns(container, TextRun){
   const runs = [];
+  let pendingBreaks = 0;
+  const emit = (text, bold, color) => {
+    if (!text) return;
+    runs.push(new TextRun({
+      text,
+      bold: bold,
+      break: pendingBreaks || undefined,
+      highlight: bold ? (color || 'yellow') : undefined
+    }));
+    pendingBreaks = 0;
+  };
   function walk(node, bold, highlightColor){
     if (node.nodeType === Node.TEXT_NODE){
-      if (node.textContent) runs.push(new TextRun({text: node.textContent, bold: bold, highlight: bold ? (highlightColor || 'yellow') : undefined}));
-    } else if (node.nodeType === Node.ELEMENT_NODE){
-      const isBold = bold || node.tagName === 'STRONG' || node.tagName === 'B';
-      let color = highlightColor;
-      if (node.tagName === 'STRONG' || node.tagName === 'B'){
-        color = node.classList && node.classList.contains('hl-green') ? 'green' : (color || 'yellow');
-      }
-      node.childNodes.forEach(child => walk(child, isBold, color));
+      const parts = String(node.textContent || '').split('\n');
+      parts.forEach((part, idx) => {
+        if (idx > 0) pendingBreaks = Math.max(pendingBreaks, 1);
+        emit(part, bold, highlightColor);
+      });
+      return;
     }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    if (node.tagName === 'BR'){ pendingBreaks = Math.max(pendingBreaks, 1); return; }
+
+    const isBold = bold || node.tagName === 'STRONG' || node.tagName === 'B';
+    let color = highlightColor;
+    if (node.tagName === 'STRONG' || node.tagName === 'B'){
+      if (node.classList && node.classList.contains('hl-green')) color = 'green';
+      else color = color || 'yellow';
+    }
+    const isBlock = BLOCK_TAGS.has(node.tagName);
+    if (isBlock && runs.length) pendingBreaks = Math.max(pendingBreaks, 1);
+    node.childNodes.forEach(child => walk(child, isBold, color));
+    if (isBlock) pendingBreaks = Math.max(pendingBreaks, 1);
   }
   container.childNodes.forEach(child => walk(child, false, null));
   return runs;
@@ -1852,7 +2381,7 @@ document.getElementById('downloadDocxBtn').addEventListener('click', async () =>
       lastGroupKey = groupKey;
     }
     children.push(new Paragraph({
-      text: `Ref. ${r.codigo}`,
+      text: `Ref. ${r.codigo}${getVariante(r) ? ` | ${getVariante(r)}` : ''}`,
       heading: HeadingLevel.HEADING_2,
       spacing: { before: 240, after: 100 }
     }));
