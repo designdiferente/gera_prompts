@@ -171,6 +171,16 @@
   .add-client-form input:focus{outline:none; border-color:var(--ink);}
 
   .clients-toolbar{display:flex; align-items:center; gap:10px; margin-bottom:18px; flex-wrap:wrap;}
+  .gerado-counter{
+    display:flex; align-items:center; gap:10px; margin-left:auto;
+    font-size:13px; font-weight:700; color:var(--gerado);
+  }
+  .gerado-counter-bar{
+    width:90px; height:7px; border-radius:20px; background:var(--line); overflow:hidden; flex:none;
+  }
+  .gerado-counter-fill{
+    height:100%; width:0%; background:var(--gerado); border-radius:20px; transition:width .3s ease;
+  }
   .selection-actions{display:flex; gap:8px; flex-wrap:wrap;}
 
   .client-row{
@@ -225,8 +235,18 @@
   .btn-ghost:hover{background:var(--accent-soft);}
   #status{margin-top:12px; font-size:13px; color:var(--muted); min-height:18px;}
   .results{margin-top:30px; display:flex; flex-direction:column; gap:16px;}
-  .card{background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; transition:background .15s, border-color .15s;}
-  .card.gerado{background:var(--gerado-soft); border-color:var(--gerado-line);}
+  .card{position:relative; background:var(--card); border:1px solid var(--line); border-radius:16px; padding:18px 20px; transition:background .15s, border-color .15s, box-shadow .15s;}
+  .card.gerado{
+    background:var(--gerado-soft); border:2px solid var(--gerado);
+    box-shadow:0 0 0 4px var(--gerado-soft), 0 8px 20px rgba(0,0,0,.06);
+  }
+  .card.gerado::before{
+    content:"✅ LOOKBOOK GERADO";
+    position:absolute; top:-13px; right:18px;
+    background:var(--gerado); color:#fff; font-size:11px; font-weight:800;
+    letter-spacing:.04em; padding:5px 14px; border-radius:20px;
+    box-shadow:0 4px 12px rgba(0,0,0,.2);
+  }
   .gerado-toggle{
     display:inline-flex; align-items:center; gap:6px; font-size:12.5px; font-weight:700;
     color:var(--muted); background:var(--bg); border:1px solid var(--line); border-radius:20px;
@@ -457,6 +477,10 @@
       <button class="pill-btn pill-ghost" id="btnSelectAllRefs">Selecionar todas</button>
       <button class="pill-btn pill-danger" id="btnDeleteSelectedRefs" disabled>Apagar selecionadas (0)</button>
       <button class="pill-btn pill-ghost" id="btnCancelSelectRefs">Cancelar</button>
+    </div>
+    <div class="gerado-counter" id="geradoCounter" style="display:none;">
+      <div class="gerado-counter-bar"><div class="gerado-counter-fill" id="geradoCounterFill"></div></div>
+      <span id="geradoCounterText">✅ 0 de 0 lookbooks gerados</span>
     </div>
   </div>
 
@@ -880,7 +904,15 @@ const PHOTO_FIELD_ORDER = [
   ['braco_acessorio_qtd_fotos','acessorio_braco'],
   ['calcado_qtd_fotos','calcado']
 ];
-const FECHAMENTO_FIXO = "Vestindo as roupas que enviei na referência, preservando todos os detalhes, como estampas, tecidos, bordados, cores, caimento, modelagem e etc. Ultra realista, Anatomia real, Iluminação de estúdio high-key ratio 1:2 com luz difusa suave, aparência limpa e uniforme, sombras leves e naturais, flash como luz principal ao lado direito do modelo a 45 graus. câmera Nikon Z8, lente 85mm, luz suave de cabelo a 45 graus, 1/2 fstop acima da luz principal. Fundo totalmente branco em ciclorama contínuo, sem elementos visíveis de estúdio. roupa perfeita no modelo, sem amassados.";
+// Trava de fidelidade da roupa. Fica isolada em bloco próprio, logo depois da
+// âncora de identidade/postura e ANTES dos itens da ficha — é ali que o
+// Nano Banana Pro (e modelos de edição condicionada em imagem no geral) mais
+// "escuta": o que vem cedo e isolado tem muito mais peso do que uma frase
+// perdida no meio de um parágrafo de specs de câmera/luz.
+const TRAVA_ROUPA = "Manter fielmente cada peça mostrada nas fotos de referência anexadas — tecido, estampa, cor, corte, caimento e acabamentos — sem redesenhar, reinterpretar, simplificar ou trocar nenhum detalhe da roupa.";
+// Fechamento agora fala só de fotografia (câmera, luz, fundo), sem nenhuma
+// menção a roupa — isso evita competir com a trava acima.
+const FECHAMENTO_FIXO = "Ultra realista, Anatomia real, Iluminação de estúdio high-key ratio 1:2 com luz difusa suave, aparência limpa e uniforme, sombras leves e naturais, flash como luz principal ao lado direito do modelo a 45 graus. câmera Nikon Z8, lente 85mm, luz suave de cabelo a 45 graus, 1/2 fstop acima da luz principal. Fundo totalmente branco em ciclorama contínuo, sem elementos visíveis de estúdio. roupa perfeita no modelo, sem amassados.";
 const MAQUIAGEM_FEMININA = "Maquiagem natural de editorial de moda ('no-makeup makeup'), com acabamento realista, valorizando o tom de pele e as características individuais da modelo. Pele com textura natural preservada, levemente iluminada, sem efeito de porcelana. Sobrancelhas penteadas, olhos e lábios com acabamento suave, sem contornos marcados ou aspecto artificial.";
 
 function isSim(v){ if (typeof v === 'boolean') return v; return String(v).trim().toLowerCase() === 'sim'; }
@@ -951,16 +983,18 @@ function buildPrompt(ref){
   // O prompt é organizado em BLOCOS. Segmentos do mesmo bloco ficam na mesma
   // linha; cada bloco novo começa em uma linha nova. Isso evita o parágrafo
   // gigante e deixa a leitura/conferência muito mais rápida.
-  //   1 = modelo + postura base   2 = composição da peça
-  //   3 = pose/expressão          4 = fechamento técnico   5 = maquiagem
+  //   1 = modelo + postura base   2 = trava de fidelidade da roupa
+  //   3 = composição da peça      4 = pose/expressão
+  //   5 = fechamento técnico      6 = maquiagem
   const segments = [
     {text:`O modelo da imagem de referência, sem mudar a aparência. ${poseBaseSentence}`, hl:false, block:1, isBase:true},
-    ...fichaSegs.map(s => ({...s, block:2})),
-    {text:poseLabel, hl:true, isPose:true, block:3},
-    {text:FECHAMENTO_FIXO, hl:false, block:4}
+    {text:TRAVA_ROUPA, hl:false, block:2},
+    ...fichaSegs.map(s => ({...s, block:3})),
+    {text:poseLabel, hl:true, isPose:true, block:4},
+    {text:FECHAMENTO_FIXO, hl:false, block:5}
   ];
   if ((ref.genero || '').trim().toLowerCase() === 'menina' && KNOWN_GRADES.indexOf(grade) >= KNOWN_GRADES.indexOf('Infantil')){
-    segments.push({text: MAQUIAGEM_FEMININA, hl:false, block:5});
+    segments.push({text: MAQUIAGEM_FEMININA, hl:false, block:6});
   }
   const result = {codigo: ref.codigo, variante: ref.variante || '', grade, genero: ref.genero, category, isExpressaoOnly, segments, notes};
   if (grade === 'Bebê') result.posturaBebe = BEBE_POSTURA_PADRAO;
@@ -1705,6 +1739,8 @@ function renderResults(results, warnings){
       updateDeleteSelectedRefsLabel();
     });
   });
+
+  updateGeradoCounter();
 }
 
 // Pills de postura base do bebê. Trocar a pill reescreve a frase inicial do
@@ -1956,11 +1992,25 @@ function toggleGerado(i){
   if (card) card.classList.toggle('gerado', r.raw.gerado);
   if (toggle) toggle.classList.toggle('checked', r.raw.gerado);
   if (checkbox) checkbox.checked = r.raw.gerado;
+  updateGeradoCounter();
 
   if (r.dbId){
     sb.from('client_refs').update({ raw: r.raw, updated_at: new Date().toISOString() }).eq('id', r.dbId)
       .then(({error}) => { if (error) console.warn('Falha ao salvar "Lookbook Gerado":', error); });
   }
+}
+
+// Contador "✅ X de Y lookbooks gerados" no topo da lista de resultados.
+function updateGeradoCounter(){
+  const wrap = document.getElementById('geradoCounter');
+  if (!wrap) return;
+  const results = window.__lastResults || [];
+  if (!results.length){ wrap.style.display = 'none'; return; }
+  const total = results.length;
+  const feitos = results.filter(isGerado).length;
+  wrap.style.display = 'flex';
+  document.getElementById('geradoCounterText').textContent = `✅ ${feitos} de ${total} lookbook${total === 1 ? '' : 's'} gerado${total === 1 ? '' : 's'}`;
+  document.getElementById('geradoCounterFill').style.width = `${total ? Math.round((feitos/total)*100) : 0}%`;
 }
 
 // ================= Nome de arquivo (cliente + data/hora) =================
