@@ -101,6 +101,18 @@
   }
   .obs-badge:hover{filter:brightness(0.95);}
   [data-theme="dark"] .obs-badge{background:#4a2f0e; color:#f0b768;}
+  .conceito-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+    background:#ece3f9; color:#5b3a94; padding:4px 10px; border-radius:20px;
+    margin-top:6px; margin-left:6px;
+  }
+  [data-theme="dark"] .conceito-badge{background:#332a4a; color:#c5aef0;}
+  .costas-badge{
+    display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700;
+    background:#fde0e0; color:#9c2b2b; padding:4px 10px; border-radius:20px;
+    margin-top:6px; margin-left:6px;
+  }
+  [data-theme="dark"] .costas-badge{background:#4a2222; color:#f0a8a8;}
   .obs-panel{
     margin-top:8px; padding:10px 13px; background:#fff7ec; border:1px solid #f0d9b0;
     border-radius:10px; font-size:13px; color:#5c4419;
@@ -270,6 +282,10 @@
   }
   .prompt-box strong.hl-green{
     background:#d4f4dd; color:#166534; font-weight:700;
+    padding:1px 4px; border-radius:4px;
+  }
+  .prompt-box strong.hl-red{
+    background:#fdd9d9; color:#8a1616; font-weight:700;
     padding:1px 4px; border-radius:4px;
   }
   /* Pose: realce amarelo discreto — só um marca-texto, sem contorno */
@@ -916,6 +932,12 @@ const FECHAMENTO_FIXO = "Ultra realista, Anatomia real, Iluminação de estúdio
 const MAQUIAGEM_FEMININA = "Maquiagem natural de editorial de moda ('no-makeup makeup'), com acabamento realista, valorizando o tom de pele e as características individuais da modelo. Pele com textura natural preservada, levemente iluminada, sem efeito de porcelana. Sobrancelhas penteadas, olhos e lábios com acabamento suave, sem contornos marcados ou aspecto artificial.";
 
 function isSim(v){ if (typeof v === 'boolean') return v; return String(v).trim().toLowerCase() === 'sim'; }
+// "Foto conceito" e "foto de costas" são avisos de produção lidos direto da
+// ficha (e do relatório na primeira página) — não entram no prompt de IA,
+// servem só pra sinalizar no quadrado da referência que o fotógrafo/produção
+// precisa tirar essas fotos extras no dia do lookbook.
+function needsFotoConceito(r){ return !!(r && r.raw && isSim(r.raw.foto_conceito)); }
+function needsFotoCostas(r){ return !!(r && r.raw && isSim(r.raw.foto_costas)); }
 function descalcoGendered(genero){
   const g = (genero || '').trim().toLowerCase();
   if (g === 'menina') return 'Modelo descalça.';
@@ -941,7 +963,11 @@ function buildFichaSegments(ref){
   push(accessorySegment(ref,'brinco_tem','brinco_txt','brinco_qtd_fotos',
     'Irá ter o brinco {txt}.', 'o brinco', 'o brinco', 'Brinco'));
 
-  if (isSim(ref.parte_cima_tem)) segs.push({text:'Na parte de cima, seguir a peça da foto de referência.', hl:false});
+  if (isSim(ref.parte_cima_tem)){
+    const txt = (ref.parte_cima_txt || '').trim();
+    if (txt) segs.push({text:`Na parte de cima, ${txt}.`, hl:true, hlColor:'red'});
+    else segs.push({text:'Na parte de cima, seguir a peça da foto de referência.', hl:false});
+  }
   if (isSim(ref.cadarco)) segs.push({text:`Na cintura, o cadarço aparece em forma de ${(ref.cadarco_estilo||'').trim()}.`, hl:false});
   if (isSim(ref.por_dentro)) segs.push({text:'A parte de cima por dentro da parte de baixo.', hl:false});
   if (isSim(ref.mao_bolso)) segs.push({text:'uma das mãos no bolso.', hl:true, hlColor:'green'});
@@ -951,7 +977,11 @@ function buildFichaSegments(ref){
   push(accessorySegment(ref,'braco_acessorio_tem','braco_acessorio_txt','braco_acessorio_qtd_fotos',
     'Nos braços, terá o acessório {txt}.', 'o acessório de braço', 'o acessório de braço', 'Acessório de braço'));
 
-  if (isSim(ref.parte_baixo_tem)) segs.push({text:'Na parte de baixo, seguir a peça da foto de referência.', hl:false});
+  if (isSim(ref.parte_baixo_tem)){
+    const txt = (ref.parte_baixo_txt || '').trim();
+    if (txt) segs.push({text:`Na parte de baixo, ${txt}.`, hl:true, hlColor:'red'});
+    else segs.push({text:'Na parte de baixo, seguir a peça da foto de referência.', hl:false});
+  }
   if (isSim(ref.comprimento_especificar)) segs.push({text:`A peça terá o comprimento até ${(ref.comprimento_txt||'').trim()}.`, hl:false});
 
   if (isSim(ref.calcado_usa)){
@@ -1017,7 +1047,7 @@ function segmentsToHtml(segments){
         ? `<strong class="pose-filled" data-pose-value="1">${escaped}</strong>`
         : `<strong class="pose-hl" data-pose-slot="1">${escaped}</strong>`);
     } else if (s.hl){
-      bucket.html.push(`<strong class="hl${s.hlColor === 'green' ? '-green' : ''}">${escaped}</strong>`);
+      bucket.html.push(`<strong class="hl${s.hlColor ? '-'+s.hlColor : ''}">${escaped}</strong>`);
     } else if (s.isBase){
       bucket.html.push(`<span data-pose-base="1">${escaped}</span>`);
     } else {
@@ -1680,8 +1710,12 @@ function renderResults(results, warnings){
           ✅ Lookbook Gerado
         </label>
       </div>
-      ${r.hasPhotos ? `<div><span class="photo-badge">📷 Contém imagem de referência</span>${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button>` : ''}</div>`
-        : ((r.raw && r.raw.obs && r.raw.obs.trim()) ? `<div><button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button></div>` : '')}
+      ${(r.hasPhotos || (r.raw && r.raw.obs && r.raw.obs.trim()) || needsFotoConceito(r) || needsFotoCostas(r)) ? `<div>
+        ${r.hasPhotos ? `<span class="photo-badge">📷 Contém imagem de referência</span>` : ''}
+        ${needsFotoConceito(r) ? `<span class="conceito-badge" title="Precisa tirar foto conceito no dia do lookbook">🎨 Foto conceito</span>` : ''}
+        ${needsFotoCostas(r) ? `<span class="costas-badge" title="Precisa tirar foto de costas no dia do lookbook">🔄 Foto de costas</span>` : ''}
+        ${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button>` : ''}
+      </div>` : ''}
       ${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<div class="obs-panel" id="obs-panel-${i}" style="display:none;">${escapeHtml(r.raw.obs)}</div>` : ''}
       <div class="prompt-box" id="prompt-${i}" contenteditable="true">${r.savedHtml != null ? r.savedHtml : segmentsToHtml(r.segments)}</div>
       ${r.notes.length ? `<div class="notes">${r.notes.map(n=>`<div>! ${n}</div>`).join('')}</div>` : ''}
@@ -2402,6 +2436,7 @@ function domToDocxRuns(container, TextRun){
     let color = highlightColor;
     if (node.tagName === 'STRONG' || node.tagName === 'B'){
       if (node.classList && node.classList.contains('hl-green')) color = 'green';
+      else if (node.classList && node.classList.contains('hl-red')) color = 'red';
       else color = color || 'yellow';
     }
     const isBlock = BLOCK_TAGS.has(node.tagName);
