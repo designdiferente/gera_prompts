@@ -174,6 +174,18 @@
   .pill-danger{background:var(--mono-danger-soft); color:var(--mono-danger); border-color:transparent;}
   .pill-danger:hover{opacity:.85;}
   .pill-btn:disabled{opacity:.4; cursor:not-allowed;}
+  .sort-select-wrap{
+    display:inline-flex; align-items:center; gap:7px;
+    background:transparent; border:1.5px solid var(--line); border-radius:999px;
+    padding:9px 16px 9px 14px; cursor:pointer;
+  }
+  .sort-select-wrap:hover{border-color:var(--ink);}
+  .sort-select-icon{font-size:13px; color:var(--muted); flex:none;}
+  .sort-select-wrap select{
+    font-family:inherit; font-size:13.5px; font-weight:700; color:var(--ink);
+    background:transparent; border:none; cursor:pointer; outline:none;
+  }
+  .sort-select-wrap select option{color:#000;}
 
   .add-client-form{display:flex; gap:10px; margin-bottom:18px;}
   .add-client-form input{
@@ -495,6 +507,15 @@
       <button class="pill-btn pill-danger" id="btnDeleteSelectedRefs" disabled>Apagar selecionadas (0)</button>
       <button class="pill-btn pill-ghost" id="btnCancelSelectRefs">Cancelar</button>
     </div>
+    <label class="sort-select-wrap">
+      <span class="sort-select-icon">⇅</span>
+      <select id="sortModeSelect">
+        <option value="added">Ordem de adição</option>
+        <option value="numeric">Ordem numérica</option>
+        <option value="gerado_pendente">Lookbook: pendentes primeiro</option>
+        <option value="gerado_feito">Lookbook: gerados primeiro</option>
+      </select>
+    </label>
     <div class="gerado-counter" id="geradoCounter" style="display:none;">
       <div class="gerado-counter-bar"><div class="gerado-counter-fill" id="geradoCounterFill"></div></div>
       <span id="geradoCounterText">✅ 0 de 0 lookbooks gerados</span>
@@ -751,6 +772,9 @@ function rememberProcessedFiles(files){
 let poseStates = []; // {parts:{pose,cabeca,expr}, history:[{pose,cabeca,expr}], historyIndex, undoStack}
 let refSelectMode = false;
 let selectedRefIndices = new Set();
+// Ordem de exibição dos cards, sem mexer na ordem real de window.__lastResults
+// (que continua sendo a ordem de adição / created_at, usada por padrão).
+let sortMode = 'added'; // 'added' | 'numeric' | 'gerado_pendente' | 'gerado_feito'
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -1546,6 +1570,11 @@ document.getElementById('btnToggleSelectRefs').addEventListener('click', () => {
   renderResults(window.__lastResults || [], []);
   wireAutosave();
 });
+document.getElementById('sortModeSelect').addEventListener('change', (e) => {
+  sortMode = e.target.value;
+  renderResults(window.__lastResults || [], []);
+  wireAutosave();
+});
 document.getElementById('btnCancelSelectRefs').addEventListener('click', () => {
   refSelectMode = false;
   selectedRefIndices.clear();
@@ -1708,6 +1737,31 @@ processBtn.addEventListener('click', async () => {
   if (mergedResults.some(r => r.hasPhotos)) document.getElementById('downloadZipBtn').style.display = 'inline-block';
 });
 
+// Calcula a ORDEM DE EXIBIÇÃO dos cards sem reordenar o array real — cada
+// item retornado é o índice original em `results` (== window.__lastResults),
+// então todo o resto do código (poseStates[i], toggleGerado(i), etc.) continua
+// funcionando normalmente, só a posição visual na tela muda.
+function getDisplayOrder(results){
+  const idx = results.map((_, i) => i);
+  if (sortMode === 'numeric'){
+    idx.sort((a, b) => {
+      const ca = String(results[a].codigo || ''), cb = String(results[b].codigo || '');
+      const na = parseInt(ca.replace(/\D/g, ''), 10), nb = parseInt(cb.replace(/\D/g, ''), 10);
+      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
+      return ca.localeCompare(cb, 'pt-BR', {numeric:true, sensitivity:'base'});
+    });
+  } else if (sortMode === 'gerado_pendente' || sortMode === 'gerado_feito'){
+    const pendentePrimeiro = sortMode === 'gerado_pendente';
+    idx.sort((a, b) => {
+      const ga = isGerado(results[a]) ? 1 : 0;
+      const gb = isGerado(results[b]) ? 1 : 0;
+      return pendentePrimeiro ? (ga - gb) : (gb - ga);
+    });
+  }
+  // 'added' — mantém a ordem natural do array (ordem de adição / created_at)
+  return idx;
+}
+
 function renderResults(results, warnings){
   const warnBox = document.getElementById('warningsBox');
   warnBox.innerHTML = warnings.length
@@ -1716,8 +1770,9 @@ function renderResults(results, warnings){
 
   document.getElementById('resultsToolbar').style.display = results.length ? 'flex' : 'none';
 
+  const order = getDisplayOrder(results);
   const resultsEl = document.getElementById('results');
-  resultsEl.innerHTML = results.map((r, i) => `
+  resultsEl.innerHTML = order.map(i => { const r = results[i]; return `
     <div class="card${isGerado(r) ? ' gerado' : ''}" data-idx="${i}">
       <div class="card-head">
         <input type="checkbox" class="ref-check" data-idx="${i}" style="display:${refSelectMode ? 'inline-block' : 'none'};" ${selectedRefIndices.has(i) ? 'checked' : ''}>
@@ -1778,10 +1833,10 @@ function renderResults(results, warnings){
         </div>
       </div>
     </div>
-  `).join('');
+  `; }).join('');
 
-  results.forEach((r, i) => { if (isBebeGrade(r)) renderPosturaPills(i); });
-  results.forEach((r, i) => { updatePoseNav(i); });
+  order.forEach(i => { if (isBebeGrade(results[i])) renderPosturaPills(i); });
+  order.forEach(i => { updatePoseNav(i); });
 
   resultsEl.querySelectorAll('.ref-check').forEach(cb => {
     cb.addEventListener('click', e => e.stopPropagation());
