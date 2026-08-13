@@ -439,6 +439,7 @@
     <p id="conflictModalText" style="text-align:left;"></p>
     <div class="modal-actions">
       <button class="pill-btn pill-ghost" id="btnConflictKeepBoth">Manter ambas</button>
+      <button class="pill-btn pill-ghost" id="btnConflictIgnore">Ignorar as já existentes</button>
       <button class="pill-btn pill-danger" id="btnConflictReplace">Substituir</button>
     </div>
   </div>
@@ -1466,12 +1467,14 @@ function showConflictModal(codes){
   return new Promise(resolve => {
     const modal = document.getElementById('conflictModal');
     document.getElementById('conflictModalText').textContent =
-      `As referências ${codes.join(', ')} já existem salvas pra esse cliente. O que fazer com todas elas?`;
+      `As referências ${codes.join(', ')} já existem salvas pra esse cliente. "Manter ambas" cria cards duplicados. "Ignorar as já existentes" descarta a versão nova dessas referências e mantém as antigas exatamente como estão (inclusive o check de Lookbook Gerado). "Substituir" apaga a versão antiga e usa a nova — o check de Lookbook Gerado é levado adiante se a referência já estava marcada.`;
     modal.style.display = 'flex';
     const keepBtn = document.getElementById('btnConflictKeepBoth');
+    const ignoreBtn = document.getElementById('btnConflictIgnore');
     const replaceBtn = document.getElementById('btnConflictReplace');
-    const cleanup = () => { modal.style.display = 'none'; keepBtn.onclick = null; replaceBtn.onclick = null; };
+    const cleanup = () => { modal.style.display = 'none'; keepBtn.onclick = null; ignoreBtn.onclick = null; replaceBtn.onclick = null; };
     keepBtn.onclick = () => { cleanup(); resolve('keep'); };
+    ignoreBtn.onclick = () => { cleanup(); resolve('ignore'); };
     replaceBtn.onclick = () => { cleanup(); resolve('replace'); };
   });
 }
@@ -1641,13 +1644,28 @@ processBtn.addEventListener('click', async () => {
   let mergedResults;
   if (resolution === 'replace'){
     const toRemove = existingResults.filter(r => conflictCodes.includes(r.codigo));
+    // Preserva o check "Lookbook Gerado" das referências antigas: se a referência
+    // que está sendo substituída já estava marcada como concluída, a nova versão
+    // (recém-parseada da ficha) herda essa marcação em vez de nascer desmarcada.
+    const geradoPorCodigo = new Map(toRemove.filter(isGerado).map(r => [r.codigo, true]));
     for (const r of toRemove){
       if (r.dbId){
         const { error } = await sb.from('client_refs').delete().eq('id', r.dbId);
         if (error) console.warn('Falha ao remover referência antiga', r.codigo, error);
       }
     }
+    newResults.forEach(r => {
+      if (geradoPorCodigo.has(r.codigo)){
+        if (!r.raw) r.raw = {};
+        r.raw.gerado = true;
+      }
+    });
     mergedResults = existingResults.filter(r => !conflictCodes.includes(r.codigo)).concat(newResults);
+  } else if (resolution === 'ignore'){
+    // Descarta a versão nova das referências que já existem — as antigas ficam
+    // 100% intocadas (inclusive o check de Lookbook Gerado). Só entram as
+    // referências genuinamente novas deste upload.
+    mergedResults = existingResults.concat(newResults.filter(r => !conflictCodes.includes(r.codigo)));
   } else {
     mergedResults = existingResults.concat(newResults);
   }
