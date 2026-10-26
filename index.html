@@ -685,6 +685,13 @@
   .notice-list li em{ font-style:normal; font-size:11.5px; color:var(--muted); margin-left:auto; }
   .notice-list li em.tag-dup{ color:var(--warn); margin-left:0; font-weight:700; }
   .notice-list .risc{ text-decoration:line-through; opacity:.5; }
+
+  /* abas sem limite: quebram em mais linhas em vez de sumir na rolagem */
+  .lote-tabs{ flex-wrap:wrap; max-height:none; overflow:visible; row-gap:4px; }
+  .refs-shell.mode-todos .lote-tabs{ max-height:0; overflow:hidden; }
+  .lote-tab{ border-radius:13px 13px 0 0; }
+  .lote-tab.drop-before{ box-shadow: inset 3px 0 0 var(--lc); }
+  .lote-tab.drop-after{ box-shadow: inset -3px 0 0 var(--lc); }
 </style>
 </head>
 <body data-theme="light">
@@ -2027,6 +2034,11 @@ function loteLabel(v){ v = String(v || '').trim(); return !v ? 'Sem lote' : (/^\
 function normLote(v){ v = String(v || '').trim().replace(/\s+/g, ' '); const m = v.match(/^lote\s*(\d+)$/i); return m ? m[1] : v; }
 function isConceitoLote(v){ return /conceito/i.test(String(v || '')); }
 const LOTE_CORES = ['#1f8a70', '#2f6fdb', '#d9822b', '#7a5bd6', '#d1495b', '#0f9bb5', '#8c9a1f'];
+function corDoIndice(k){
+  if (k < LOTE_CORES.length) return LOTE_CORES[k];
+  const h = Math.round((k * 137.508 + 25) % 360);
+  return `hsl(${h} 62% 46%)`;
+}
 function loteCor(v){
   if (isConceitoLote(v)) return 'var(--conceito)';
   if (!v) return 'var(--muted)';
@@ -2035,11 +2047,10 @@ function loteCor(v){
   const cores = loteStore.colors || (loteStore.colors = {});
   if (cores[v] == null){
     const usadas = new Set(Object.values(cores));
-    let k = 0; while (usadas.has(k) && k < LOTE_CORES.length) k++;
-    if (k >= LOTE_CORES.length) k = Object.keys(cores).length % LOTE_CORES.length;
+    let k = 0; while (usadas.has(k)) k++;
     cores[v] = k; saveLoteStore();
   }
-  return LOTE_CORES[cores[v] % LOTE_CORES.length];
+  return corDoIndice(cores[v]);
 }
 function loteChip(v){
   return `<span class="lote-chip${isConceitoLote(v) ? ' conceito' : ''}" style="--lc:${loteCor(v)}">${escapeHtml(loteLabel(v))}</span>`;
@@ -2255,11 +2266,23 @@ function renderLoteTabs(){
     </div>`;
   }).join('') + `<button type="button" class="lote-tab-new" id="btnNewLote" title="Criar lote em branco" aria-label="Criar lote">+</button>`;
   document.getElementById('btnNewLote').addEventListener('click', e => { e.stopPropagation(); createLote(); });
+  if (!el.dataset.dndWired){
+    el.dataset.dndWired = '1';
+    el.addEventListener('dragover', e => e.preventDefault());
+    el.addEventListener('drop', e => { e.preventDefault(); const v = e.dataTransfer.getData('text/plain'); if (v) reorderLote(v, null); });
+  }
   el.querySelectorAll('.lote-tab').forEach(tab => {
     tab.addEventListener('dragstart', e => { tab.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tab.dataset.lote); });
-    tab.addEventListener('dragend', () => { tab.classList.remove('dragging'); el.querySelectorAll('.drop-before').forEach(t => t.classList.remove('drop-before')); });
-    tab.addEventListener('dragover', e => { e.preventDefault(); el.querySelectorAll('.drop-before').forEach(t => t.classList.remove('drop-before')); tab.classList.add('drop-before'); });
-    tab.addEventListener('drop', e => { e.preventDefault(); const v = e.dataTransfer.getData('text/plain'); if (v && v !== tab.dataset.lote) reorderLote(v, tab.dataset.lote || null); });
+    const clearMarks = () => el.querySelectorAll('.drop-before, .drop-after').forEach(t => t.classList.remove('drop-before', 'drop-after'));
+    const depois = e => { const rc = tab.getBoundingClientRect(); return e.clientX > rc.left + rc.width / 2; };
+    tab.addEventListener('dragend', () => { tab.classList.remove('dragging'); clearMarks(); });
+    tab.addEventListener('dragover', e => { e.preventDefault(); clearMarks(); tab.classList.add(depois(e) ? 'drop-after' : 'drop-before'); });
+    tab.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation(); clearMarks();
+      const v = e.dataTransfer.getData('text/plain');
+      if (!v || v === tab.dataset.lote) return;
+      if (depois(e)) dropLoteAfter(v, tab.dataset.lote); else reorderLote(v, tab.dataset.lote || null);
+    });
     const open = () => {
       if (activeLote === tab.dataset.lote) return;
       activeLote = tab.dataset.lote;
@@ -2494,6 +2517,12 @@ function moveLote(v, dir){
   const k = lotes.indexOf(v), j = k + dir;
   if (k < 0 || j < 0 || j >= lotes.length) return;
   [lotes[k], lotes[j]] = [lotes[j], lotes[k]];
+  loteStore.order = lotes; saveLoteStore(); renderLoteTabs();
+}
+function dropLoteAfter(v, afterV){
+  const lotes = lotesOf(window.__lastResults || []).filter(Boolean).filter(l => l !== v);
+  const k = lotes.indexOf(afterV);
+  lotes.splice(k < 0 ? lotes.length : k + 1, 0, v);
   loteStore.order = lotes; saveLoteStore(); renderLoteTabs();
 }
 function reorderLote(v, beforeV){
