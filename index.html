@@ -11,9 +11,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
-    --bg:#f6f6f3; --card:#ffffff; --ink:#17181a; --muted:#6c6c67;
-    --line:#e3e2dc; --accent:#2f5d4f; --accent-soft:#e6efec;
-    --pose:#7a3a30; --pose-soft:#f3e6e3;
+    --bg:#f3f4f1; --card:#ffffff; --ink:#15171a; --muted:#686a66;
+    --line:#e2e3dd; --accent:#14806a; --accent-soft:#dff3ec;
+    --pose:#b4472f; --pose-soft:#fbe9e3;
     --warn:#a15c1f; --warn-soft:#fbeee0;
     --hl-bg:#fff3b0; --hl-ink:#5c4a00;
     --pose-yellow-bg:#fff8d6; --pose-yellow-ink:#5c4300;
@@ -336,8 +336,7 @@
   .toast.show{opacity:1; transform:translateY(0);}
   .warnings div{padding:2px 0;}
 
-  .pose-panel{display:none; margin-top:14px; padding:14px 16px; border-radius:12px; background:var(--pose-soft); border:1px solid var(--pose);}
-  .pose-panel.open{display:block;}
+  .pose-panel{padding-left:16px; padding-right:16px; border-radius:12px; background:var(--pose-soft); border:1px solid var(--pose);}
   .pose-label{font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--pose); font-weight:700; margin:0 0 8px;}
   .pose-pills{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
   .pose-pill{font-size:12.5px; padding:6px 12px; border-radius:8px; border:1px solid var(--pose); background:var(--card); color:var(--ink); cursor:pointer;}
@@ -373,6 +372,319 @@
   .pose-gen-btn{background:var(--pose); color:#fff; font-size:12.5px; padding:8px 14px;}
   .pose-use-btn{background:var(--card); color:var(--pose); border:1px solid var(--pose); font-size:12.5px; padding:8px 14px;}
   .pose-use-btn:disabled{opacity:.5; cursor:not-allowed;}
+
+  /* ================= v2 · fluidez, lotes e filtros ================= */
+  :root{
+    --ease: cubic-bezier(.2,.75,.2,1);
+    --destaque:#b45309; --destaque-soft:#fdf1e1; --destaque-line:#f3c98b;
+    --shadow-sm: 0 1px 2px rgba(20,20,15,.04), 0 4px 14px rgba(20,20,15,.04);
+    --shadow-md: 0 2px 6px rgba(20,20,15,.05), 0 14px 34px rgba(20,20,15,.08);
+  }
+  [data-theme="dark"]{
+    --destaque:#f2b45e; --destaque-soft:#33260f; --destaque-line:#6b4b1a;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,.3), 0 4px 14px rgba(0,0,0,.2);
+    --shadow-md: 0 2px 6px rgba(0,0,0,.35), 0 14px 34px rgba(0,0,0,.35);
+  }
+  button, .pill-btn, .dd-btn, .lote-tab, .flag{ transition: background-color .2s var(--ease), color .2s var(--ease), border-color .2s var(--ease), box-shadow .25s var(--ease), transform .15s var(--ease), opacity .2s; }
+  button:active:not(:disabled){ transform: scale(.97); }
+  .setup-card{ box-shadow: var(--shadow-sm); }
+
+  /* ---------- casca da área de referências (fica presa no topo) ---------- */
+  .refs-shell{ display:flex; flex-direction:column; position:sticky; top:0; z-index:30; margin-top:30px;
+    padding:12px 0 10px; background:color-mix(in srgb, var(--bg) 86%, transparent);
+    backdrop-filter:blur(14px) saturate(1.2); -webkit-backdrop-filter:blur(14px) saturate(1.2); }
+  .refs-top{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  .search-wrap{ position:relative; flex:1; min-width:240px; }
+  .search-ico{ position:absolute; left:15px; top:50%; width:17px; height:17px; transform:translateY(-50%); color:var(--muted); pointer-events:none; }
+  #refSearch{ width:100%; font-family:inherit; font-size:14px; padding:11px 44px 11px 42px; border-radius:999px;
+    border:1px solid var(--line); background:var(--card); color:var(--ink); outline:none;
+    transition: border-color .2s var(--ease), box-shadow .25s var(--ease); box-shadow: var(--shadow-sm); }
+  #refSearch:focus{ border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .search-kbd{ position:absolute; right:12px; top:50%; transform:translateY(-50%); font:600 11px/1 'Inter',sans-serif; color:var(--muted);
+    border:1px solid var(--line); border-radius:6px; padding:4px 7px; background:var(--bg); pointer-events:none; transition:opacity .2s; }
+  #refSearch:focus ~ .search-kbd{ opacity:0; }
+  .search-pop{ position:absolute; top:calc(100% + 8px); left:0; right:0; background:var(--card); border:1px solid var(--line);
+    border-radius:16px; box-shadow:var(--shadow-md); padding:6px; max-height:380px; overflow:auto; z-index:50;
+    opacity:0; transform:translateY(-6px) scale(.99); transform-origin:top center; pointer-events:none;
+    transition: opacity .18s var(--ease), transform .22s var(--ease); }
+  .search-wrap.open .search-pop{ opacity:1; transform:none; pointer-events:auto; }
+  .sr{ display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:12px; width:100%; text-align:left;
+    background:transparent; border-radius:11px; padding:9px 11px; color:var(--ink); font-weight:500; }
+  .sr.on, .sr:hover{ background:var(--bg); }
+  .sr-dot{ width:8px; height:8px; border-radius:50%; background:var(--line); box-shadow:0 0 0 3px var(--bg); }
+  .sr-dot.ok{ background:var(--gerado); }
+  .sr-main{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .sr-code{ font:800 13.5px 'Manrope',sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .sr-var{ font-weight:600; color:var(--accent); }
+  .sr-star{ color:var(--destaque); }
+  .sr-sub{ font-size:12px; color:var(--muted); }
+  .sr-empty{ padding:14px; font-size:13px; color:var(--muted); text-align:center; }
+
+  /* ---------- segmented control com indicador deslizante ---------- */
+  .seg{ position:relative; display:inline-flex; padding:3px; border-radius:999px; background:var(--bg); border:1px solid var(--line); flex:none; }
+  .seg button{ position:relative; z-index:1; background:transparent; border-radius:999px; padding:8px 16px; font-size:13px; font-weight:650; color:var(--muted); }
+  .seg button.on{ color:var(--ink); }
+  .seg button:hover:not(.on){ color:var(--ink); }
+  .seg-ink{ position:absolute; top:3px; bottom:3px; left:3px; border-radius:999px; background:var(--card); box-shadow:var(--shadow-sm);
+    transition: transform .38s var(--ease), width .38s var(--ease); }
+  .seg-sm button{ padding:6px 13px; font-size:12.5px; }
+
+  /* ---------- abas de lote (estilo navegador) ---------- */
+  .lote-tabs{ display:flex; align-items:flex-end; gap:3px; margin-top:14px; padding:0 6px; overflow-x:auto; overflow-y:hidden;
+    scrollbar-width:none; max-height:60px; transition:max-height .35s var(--ease), opacity .25s, margin .35s var(--ease); }
+  .lote-tabs::-webkit-scrollbar{ display:none; }
+  .refs-shell.mode-todos .lote-tabs{ max-height:0; opacity:0; margin-top:6px; pointer-events:none; }
+  .lote-tab{ position:relative; display:flex; align-items:center; gap:9px; flex:none; padding:10px 16px 12px; margin-bottom:-1px;
+    border-radius:13px 13px 0 0; background:transparent; border:1px solid transparent; border-bottom:none;
+    color:var(--muted); font-size:13px; font-weight:650; }
+  .lote-tab:hover:not(.on){ background:color-mix(in srgb, var(--card) 60%, transparent); color:var(--ink); }
+  .lote-tab.on{ background:var(--card); color:var(--ink); border-color:var(--line); z-index:2; }
+  .tab-count{ font-size:11px; font-weight:700; padding:2px 7px; border-radius:999px; background:var(--bg); color:var(--muted); }
+  .lote-tab.on .tab-count{ background:var(--accent-soft); color:var(--accent); }
+  .lote-tab.complete .tab-count{ background:var(--gerado-soft); color:var(--gerado); }
+  .tab-prog{ position:absolute; left:14px; right:14px; bottom:5px; height:2px; border-radius:2px; background:var(--line); overflow:hidden; opacity:.8; }
+  .tab-prog span{ display:block; height:100%; background:var(--gerado); border-radius:2px; transition:width .5s var(--ease); }
+
+  .refs-panel{ background:var(--card); border:1px solid var(--line); border-radius:0 16px 16px 16px; padding:12px 14px 10px; box-shadow:var(--shadow-sm);
+    position:relative; z-index:1; transition:border-radius .3s var(--ease); }
+  .refs-shell.mode-todos .refs-panel{ border-radius:16px; }
+  .filter-bar{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  .filter-spacer{ flex:1; }
+  .pill-sm{ padding:7px 14px; font-size:12.5px; }
+  .link-btn{ background:transparent; border:none; padding:6px 8px; font-size:12.5px; font-weight:650; color:var(--accent); border-radius:8px; display:inline-flex; }
+  .link-btn:hover{ background:var(--accent-soft); }
+  .scope-bar{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top:10px; padding-top:10px; border-top:1px dashed var(--line); }
+  .scope-text{ font-size:12.5px; color:var(--muted); }
+  .scope-text b{ color:var(--ink); font-weight:700; }
+  .gerado-counter{ margin-left:0; font-size:12.5px; }
+  .gerado-counter.done span{ font-weight:800; }
+
+  /* ---------- dropdowns ---------- */
+  .dd{ position:relative; }
+  .dd-btn{ display:inline-flex; align-items:center; gap:6px; background:var(--card); border:1px solid var(--line); border-radius:999px;
+    padding:7px 11px 7px 14px; font-size:12.5px; font-weight:500; color:var(--ink); }
+  .dd-btn:hover{ border-color:var(--muted); }
+  .dd-btn.active{ border-color:var(--accent); background:var(--accent-soft); }
+  .dd-k{ color:var(--muted); }
+  .dd-v{ font-weight:700; }
+  .dd-chev{ width:14px; height:14px; color:var(--muted); transition:transform .25s var(--ease); }
+  .dd.open .dd-chev{ transform:rotate(180deg); }
+  .dd-menu{ position:absolute; top:calc(100% + 6px); left:0; min-width:210px; background:var(--card); border:1px solid var(--line);
+    border-radius:14px; box-shadow:var(--shadow-md); padding:5px; z-index:60; max-height:320px; overflow:auto;
+    opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top left; pointer-events:none;
+    transition: opacity .16s var(--ease), transform .22s var(--ease); }
+  .dd.open .dd-menu{ opacity:1; transform:none; pointer-events:auto; }
+  .dd-opt{ display:flex; align-items:center; justify-content:space-between; gap:14px; width:100%; text-align:left; background:transparent;
+    border-radius:9px; padding:8px 10px; font-size:13px; font-weight:500; color:var(--ink); }
+  .dd-opt:hover{ background:var(--bg); }
+  .dd-opt.sel{ font-weight:700; color:var(--accent); }
+  .dd-c{ font-size:11.5px; color:var(--muted); font-weight:600; }
+  .dd-check{ opacity:0; color:var(--accent); }
+  .dd-opt.sel .dd-check{ opacity:1; }
+
+  /* ---------- cards ---------- */
+  .results{ margin-top:18px; gap:14px; }
+  .card{ border-radius:18px; padding:18px 20px 16px; box-shadow:var(--shadow-sm); transition: background .25s, border-color .25s, box-shadow .3s var(--ease), transform .3s var(--ease); }
+  .card:hover{ box-shadow:var(--shadow-md); }
+  .card.is-hidden{ display:none; }
+  .card.enter{ animation: cardIn .5s var(--ease) both; animation-delay: var(--d, 0ms); }
+  @keyframes cardIn{ from{ opacity:0; transform:translateY(12px) scale(.995); } to{ opacity:1; transform:none; } }
+  .card.flash{ animation: cardFlash 1.6s var(--ease); }
+  @keyframes cardFlash{ 0%,100%{ box-shadow:var(--shadow-sm); } 20%,60%{ box-shadow:0 0 0 3px var(--accent), var(--shadow-md); } }
+  .card.pop{ animation: cardPop .45s var(--ease); }
+  @keyframes cardPop{ 40%{ transform:scale(1.008); } }
+  .card.has-destaque{ border-left:3px solid var(--destaque); }
+  .card.gerado.has-destaque{ border-left-width:3px; border-left-color:var(--destaque); }
+  .card-head{ align-items:center; flex-wrap:nowrap; }
+  .card-title{ display:flex; flex-direction:column; gap:4px; flex:1; min-width:0; }
+  .code{ font-size:16px; letter-spacing:-.01em; }
+  .meta{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; font-size:12.5px; }
+  .meta-src{ opacity:.75; }
+  .lote-chip{ display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;
+    background:var(--bg); border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
+  .results:not(.mode-todos) .card .lote-chip{ display:none; }
+  .gerado-toggle{ padding:7px 13px 7px 10px; }
+  .card.gerado::before{ animation: badgeIn .4s var(--ease); }
+  @keyframes badgeIn{ from{ opacity:0; transform:translateY(4px) scale(.9); } }
+
+  .flags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .flag{ display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; padding:5px 11px; border-radius:999px;
+    border:1px solid transparent; line-height:1; }
+  .flag-destaque{ background:var(--destaque); color:#fff; }
+  [data-theme="dark"] .flag-destaque{ color:#1e1406; }
+  .flag-conceito{ background:#ece3f9; color:#5b3a94; }
+  .flag-costas{ background:#fde0e0; color:#9c2b2b; }
+  .flag-foto{ background:#e2ecf7; color:#2b5c8c; }
+  .flag-obs{ background:#fde4c8; color:#8a4a06; cursor:pointer; }
+  .flag-obs:hover{ filter:brightness(.96); }
+  [data-theme="dark"] .flag-conceito{ background:#332a4a; color:#c5aef0; }
+  [data-theme="dark"] .flag-costas{ background:#4a2222; color:#f0a8a8; }
+  [data-theme="dark"] .flag-foto{ background:#1c3348; color:#8fc0ef; }
+  [data-theme="dark"] .flag-obs{ background:#4a2f0e; color:#f0b768; }
+
+  .destaque-callout{ display:flex; gap:12px; align-items:flex-start; margin-top:12px; padding:11px 14px; border-radius:12px;
+    background:var(--destaque-soft); border:1px solid var(--destaque-line); }
+  .destaque-ico{ flex:none; width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-size:12px;
+    background:var(--destaque); color:#fff; margin-top:1px; }
+  .destaque-callout > div{ display:flex; flex-direction:column; gap:2px; }
+  .destaque-label{ font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--destaque); }
+  .destaque-txt{ font-size:13.5px; font-weight:600; color:var(--ink); }
+
+  .prompt-box{ margin-top:12px; border-radius:12px; transition: border-color .2s var(--ease), box-shadow .25s var(--ease), background .2s; }
+  .prompt-box:focus{ border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); background:var(--card); }
+  .copy-btn, .pose-toggle{ border-radius:999px; padding:7px 15px; }
+
+  /* painel de pose abrindo com animação */
+  .pose-panel{ display:block; max-height:0; opacity:0; overflow:hidden; margin-top:0; padding-top:0; padding-bottom:0; border-width:0;
+    transition: max-height .5s var(--ease), opacity .3s var(--ease), margin-top .35s var(--ease), padding .35s var(--ease); }
+  .pose-panel.open{ max-height:1600px; opacity:1; margin-top:14px; padding-top:14px; padding-bottom:14px; border-width:1px; }
+
+  .empty-state{ flex-direction:column; align-items:center; gap:6px; padding:48px 16px; color:var(--muted); text-align:center; animation:cardIn .4s var(--ease); }
+  .empty-ico{ font-size:28px; opacity:.5; }
+  .empty-state p{ margin:0; font-size:14px; }
+
+  @media (max-width: 640px){
+    .refs-top{ flex-direction:column; align-items:stretch; }
+    .seg{ align-self:flex-start; }
+    .card-head{ flex-wrap:wrap; }
+    .meta-src{ display:none; }
+    .filter-spacer{ display:none; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    *, *::before, *::after{ animation-duration:.01ms !important; animation-delay:0ms !important; transition-duration:.01ms !important; }
+  }
+
+  /* ================= v3 · mais cor, lotes nomeados, conceito ================= */
+  :root{ --conceito:#c2367e; --conceito-soft:#fbe4f0; --fem:#d1497a; --fem-soft:#fde6ee; --masc:#2f6fdb; --masc-soft:#e3ecfd; --lc-active:var(--accent); }
+  [data-theme="dark"]{ --accent:#4cc9a6; --accent-soft:#173a31; --conceito:#ef7ab6; --conceito-soft:#3d1a2c; --fem:#f08bb0; --fem-soft:#3b1c28; --masc:#79a6f5; --masc-soft:#1a2740; }
+  body{ background:
+      radial-gradient(1200px 500px at 0% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 60%),
+      radial-gradient(900px 420px at 100% -5%, color-mix(in srgb, var(--pose) 8%, transparent), transparent 60%),
+      var(--bg); background-attachment:fixed; }
+  .refs-shell{ background:color-mix(in srgb, var(--bg) 80%, transparent); }
+  .brand-text h1{ background:linear-gradient(90deg, var(--ink), var(--accent)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .btn-primary{ background:linear-gradient(135deg, var(--accent), color-mix(in srgb, var(--accent) 70%, #2f6fdb)); box-shadow:0 6px 18px color-mix(in srgb, var(--accent) 30%, transparent); }
+  .btn-primary:disabled{ box-shadow:none; }
+  .dropzone{ border-color:color-mix(in srgb, var(--accent) 35%, var(--line)); background:color-mix(in srgb, var(--accent-soft) 45%, var(--bg)); }
+  .copy-btn{ background:var(--accent); color:#fff; }
+  [data-theme="dark"] .copy-btn{ color:#0c1f1a; }
+  .pose-toggle{ background:var(--pose-soft); color:var(--pose); }
+  #viewModeSeg .seg-ink{ background:var(--accent); }
+  #viewModeSeg button.on{ color:#fff; }
+  [data-theme="dark"] #viewModeSeg button.on{ color:#0c1f1a; }
+  #generoSeg:has(button[data-v="menina"].on) .seg-ink{ background:var(--fem); }
+  #generoSeg:has(button[data-v="menino"].on) .seg-ink{ background:var(--masc); }
+  #generoSeg:has(button[data-v="menina"].on) button.on, #generoSeg:has(button[data-v="menino"].on) button.on{ color:#fff; }
+  .dd-btn.active{ border-color:var(--accent); background:var(--accent-soft); color:var(--accent); }
+  .gerado-counter-fill{ background:linear-gradient(90deg, var(--accent), var(--gerado)); }
+
+  /* abas: cada lote com sua cor; o painel acompanha a cor da aba aberta */
+  .lote-tab{ cursor:pointer; user-select:none; outline:none; }
+  .lote-tab:focus-visible{ box-shadow:0 0 0 2px var(--lc); }
+  .tab-dot{ width:8px; height:8px; border-radius:50%; background:var(--lc); flex:none; box-shadow:0 0 0 3px color-mix(in srgb, var(--lc) 18%, transparent); }
+  .lote-tab.on{ box-shadow: inset 0 3px 0 var(--lc); }
+  .lote-tab.on .tab-count{ background:color-mix(in srgb, var(--lc) 14%, var(--card)); color:var(--lc); }
+  .lote-tab.complete .tab-count{ background:var(--gerado-soft); color:var(--gerado); }
+  .tab-edit{ width:22px; height:22px; padding:0; margin-left:-2px; border-radius:7px; background:transparent; color:var(--muted); font-size:12px; opacity:0; display:grid; place-items:center; }
+  .lote-tab:hover .tab-edit, .lote-tab.on .tab-edit{ opacity:.7; }
+  .tab-edit:hover{ opacity:1 !important; background:var(--bg); color:var(--ink); }
+  .tab-rename{ width:140px; font:inherit; font-weight:650; font-size:13px; padding:3px 8px; border-radius:8px; border:1px solid var(--lc); background:var(--card); color:var(--ink); outline:none; box-shadow:0 0 0 3px color-mix(in srgb, var(--lc) 18%, transparent); }
+  .lote-tab.conceito{ background:color-mix(in srgb, var(--conceito-soft) 70%, transparent); color:var(--conceito); }
+  .lote-tab.conceito.on{ background:var(--conceito-soft); border-color:color-mix(in srgb, var(--conceito) 40%, var(--line)); }
+  .lote-tab.conceito .tab-name::before{ content:"✦ "; }
+  .refs-panel{ border-top:2px solid var(--lc-active); }
+  .refs-shell.lote-conceito .refs-panel{ background:linear-gradient(180deg, var(--conceito-soft), var(--card) 70%); border-color:color-mix(in srgb, var(--conceito) 35%, var(--line)); border-top-color:var(--conceito); }
+
+  .lote-chip{ background:color-mix(in srgb, var(--lc, var(--muted)) 12%, var(--card)); border-color:color-mix(in srgb, var(--lc, var(--muted)) 30%, transparent); color:var(--lc, var(--muted)); }
+  .lote-chip.conceito::before{ content:"✦ "; }
+
+  /* gênero e grade com cor no card */
+  .card .meta{ color:var(--muted); }
+  .card-title .code{ color:var(--ink); }
+  .card:has(.meta) .meta{ }
+  .card .code .variante{ color:var(--accent); }
+  .card.has-destaque{ border-left-color:var(--destaque); }
+
+  /* avisos de repetição */
+  .dup-notes:empty{ display:none; }
+  .dup-notes{ display:flex; flex-direction:column; gap:6px; margin-top:10px; }
+  .dup-note{ display:flex; align-items:center; flex-wrap:wrap; gap:6px; font-size:12.5px; padding:8px 12px; border-radius:10px; line-height:1.4; }
+  .dup-note > span:first-child{ font-weight:800; }
+  .dup-pdf{ background:var(--warn-soft); color:var(--warn); }
+  .dup-lote{ background:var(--masc-soft); color:var(--masc); }
+  .dup-all{ opacity:.75; }
+
+  /* modal de lote */
+  .lote-modal{ max-width:400px; text-align:left; animation:cardIn .3s var(--ease); }
+  .lote-modal-title{ font:800 17px 'Manrope',sans-serif; margin:0 0 4px !important; }
+  .lote-modal-file{ font-size:12.5px !important; color:var(--muted) !important; margin:0 0 16px !important; word-break:break-all; }
+  #loteModalInput{ width:100%; font-family:inherit; font-size:15px; padding:12px 16px; border-radius:12px; border:1.5px solid var(--line); background:var(--bg); color:var(--ink); outline:none; transition:border-color .2s, box-shadow .25s; }
+  #loteModalInput:focus{ border-color:var(--accent); box-shadow:0 0 0 4px var(--accent-soft); }
+  .lote-modal-hint{ font-size:12.5px !important; color:var(--accent) !important; margin:8px 0 12px !important; font-weight:600; }
+  .lote-modal-chips{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:18px; }
+  .lote-modal-chips:empty{ display:none; }
+  .lote-modal-k{ width:100%; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .lote-modal-chips button{ background:transparent; padding:0; border-radius:999px; }
+  .lote-modal-chips .lote-chip{ font-size:12.5px; padding:5px 11px; cursor:pointer; }
+  .lote-modal .modal-actions{ justify-content:flex-end; }
+  .grade-txt{ font-weight:650; color:var(--ink); opacity:.8; }
+  .gen-chip{ font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px; }
+  .gen-chip.fem{ background:var(--fem-soft); color:var(--fem); }
+  .gen-chip.masc{ background:var(--masc-soft); color:var(--masc); }
+
+  /* ================= v4 · gestão de lotes e avisos ================= */
+  .lote-tab-new{ flex:none; width:34px; height:34px; margin:0 0 6px 4px; padding:0; border-radius:10px; background:transparent; border:1px dashed var(--line);
+    color:var(--muted); font-size:18px; line-height:1; display:grid; place-items:center; }
+  .lote-tab-new:hover{ border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  .lote-tab.dragging{ opacity:.4; }
+  .lote-tab.drop-before{ box-shadow: inset 3px 0 0 var(--lc); }
+  .lote-tab.new{ background:var(--card); border-color:var(--line); }
+  .tab-edit{ font-size:15px; letter-spacing:1px; }
+  .lote-menu{ position:fixed; z-index:80; min-width:220px; background:var(--card); border:1px solid var(--line); border-radius:14px; box-shadow:var(--shadow-md); padding:5px;
+    opacity:0; transform:translateY(-6px) scale(.98); transform-origin:top left; pointer-events:none; transition:opacity .16s var(--ease), transform .22s var(--ease); }
+  .lote-menu.open{ opacity:1; transform:none; pointer-events:auto; }
+  .lote-menu button{ display:block; width:100%; text-align:left; background:transparent; border-radius:9px; padding:9px 11px; font-size:13px; font-weight:500; color:var(--ink); }
+  .lote-menu button:hover:not(:disabled){ background:var(--bg); }
+  .lote-menu button:disabled{ opacity:.35; cursor:default; }
+  .lote-menu button.danger{ color:var(--mono-danger); }
+  .lote-menu button.danger:hover{ background:var(--mono-danger-soft); }
+  .lote-menu-sep{ display:block; height:1px; margin:4px 6px; background:var(--line); }
+
+  .wide-modal{ max-width:480px; text-align:left; animation:cardIn .3s var(--ease); max-height:86vh; overflow:auto; }
+  .wide-modal-text{ font-size:13.5px !important; color:var(--muted) !important; line-height:1.55; margin:0 0 14px !important; }
+  .wide-modal-text b{ color:var(--ink); }
+  .modal-actions.spread{ justify-content:flex-start; align-items:center; flex-wrap:wrap; }
+  .wide-modal .modal-actions{ justify-content:flex-end; margin-top:16px; }
+  .lote-modal-chips button.sel .lote-chip{ box-shadow:0 0 0 2px var(--lc, var(--accent)); }
+  .dup-groups{ display:flex; flex-direction:column; gap:10px; }
+  .dup-group{ border:1px solid var(--line); border-radius:12px; padding:10px 12px; background:var(--bg); }
+  .dup-group-head{ display:flex; align-items:baseline; gap:6px; font-size:13.5px; margin-bottom:6px; }
+  .dup-group-head span{ color:var(--accent); font-weight:600; }
+  .dup-group-head em{ margin-left:auto; font-style:normal; font-size:11.5px; color:var(--muted); }
+  .dup-opt{ display:flex; align-items:center; gap:8px; padding:6px 4px; border-radius:8px; cursor:pointer; font-size:13px; }
+  .dup-opt:hover{ background:var(--card); }
+  .dup-opt input{ width:16px; height:16px; accent-color:var(--accent); }
+  .dup-opt:has(input:not(:checked)) .grade-txt{ text-decoration:line-through; opacity:.5; }
+  .dup-pg{ margin-left:auto; font-size:11.5px; color:var(--muted); }
+
+  .notice{ margin-top:14px; border-radius:16px; padding:14px 16px; border:1px solid; animation:cardIn .4s var(--ease); }
+  .notice-info{ background:color-mix(in srgb, var(--masc-soft) 70%, var(--card)); border-color:color-mix(in srgb, var(--masc) 25%, transparent); }
+  .notice-warn{ background:var(--warn-soft); border-color:color-mix(in srgb, var(--warn) 25%, transparent); color:var(--warn); }
+  .notice-head{ display:flex; align-items:flex-start; gap:12px; }
+  .notice-head > div{ display:flex; flex-direction:column; gap:2px; flex:1; font-size:13.5px; }
+  .notice-head > div span{ font-size:12px; color:var(--muted); }
+  .notice-head .notice-plain{ font-size:13px; color:inherit; }
+  .notice-ico{ flex:none; width:28px; height:28px; border-radius:50%; display:grid; place-items:center; font-weight:800; background:var(--masc); color:#fff; font-size:14px; }
+  .notice-warn .notice-ico{ background:var(--warn); }
+  .notice-x{ background:transparent; padding:2px 8px; font-size:18px; line-height:1; color:var(--muted); border-radius:8px; }
+  .notice-x:hover{ background:rgba(0,0,0,.06); }
+  .notice-list{ list-style:none; margin:12px 0 0 40px; padding:0; display:flex; flex-direction:column; gap:6px; }
+  .notice-list li{ display:flex; flex-wrap:wrap; align-items:baseline; gap:8px; font-size:13px; padding:6px 10px; background:var(--card); border-radius:9px; }
+  .notice-list li b{ font-family:'Manrope',sans-serif; min-width:52px; }
+  .notice-list li em{ font-style:normal; font-size:11.5px; color:var(--muted); margin-left:auto; }
+  .notice-list li em.tag-dup{ color:var(--warn); margin-left:0; font-weight:700; }
+  .notice-list .risc{ text-decoration:line-through; opacity:.5; }
 </style>
 </head>
 <body data-theme="light">
@@ -445,6 +757,56 @@
   </div>
 </div>
 
+<div id="loteModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card lote-modal">
+    <p class="lote-modal-title" id="loteModalTitle">Em qual lote vai este PDF?</p>
+    <p class="lote-modal-file" id="loteModalFile"></p>
+    <input type="text" id="loteModalInput" placeholder="Ex: 1, 2, Conceitos..." autocomplete="off">
+    <p class="lote-modal-hint" id="loteModalHint"></p>
+    <div class="lote-modal-chips" id="loteModalChips"></div>
+    <div class="modal-actions">
+      <button class="pill-btn pill-ghost" id="btnLoteCancel" style="display:none;">Cancelar</button>
+      <button class="pill-btn pill-solid" id="btnLoteOk">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div id="dupModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card wide-modal">
+    <p class="lote-modal-title">Referências repetidas neste PDF</p>
+    <p class="lote-modal-file" id="dupModalFile"></p>
+    <p class="wide-modal-text">Estas referências aparecem mais de uma vez no arquivo. Normalmente é a mesma peça em grades diferentes. Desmarque as que você <b>não</b> quer gerar.</p>
+    <div class="dup-groups" id="dupGroups"></div>
+    <div class="modal-actions">
+      <button class="pill-btn pill-ghost" id="btnDupKeepAll">Manter todas</button>
+      <button class="pill-btn pill-solid" id="btnDupKeepSel">Manter só as marcadas</button>
+    </div>
+  </div>
+</div>
+
+<div id="loteDeleteModal" class="modal-overlay" style="display:none;">
+  <div class="modal-card wide-modal">
+    <p class="lote-modal-title" id="loteDelTitle"></p>
+    <p class="wide-modal-text" id="loteDelText"></p>
+    <p class="lote-modal-k" style="margin:4px 0 8px;">Mover as referências para</p>
+    <div class="lote-modal-chips" id="loteDelTargets"></div>
+    <div class="modal-actions spread">
+      <button class="pill-btn pill-danger" id="btnLoteDelAll">Excluir tudo</button>
+      <span style="flex:1"></span>
+      <button class="pill-btn pill-ghost" id="btnLoteDelCancel">Cancelar</button>
+      <button class="pill-btn pill-solid" id="btnLoteDelMove" disabled>Mover e excluir lote</button>
+    </div>
+  </div>
+</div>
+
+<div class="lote-menu" id="loteMenu" role="menu">
+  <button type="button" data-a="rename">✎ Renomear</button>
+  <button type="button" data-a="left">← Mover para a esquerda</button>
+  <button type="button" data-a="right">→ Mover para a direita</button>
+  <span class="lote-menu-sep"></span>
+  <button type="button" data-a="delete" class="danger">🗑 Excluir lote</button>
+</div>
+
 <div id="conflictModal" class="modal-overlay" style="display:none;">
   <div class="modal-card">
     <p style="font-weight:700; margin-bottom:8px;">Referências já existentes</p>
@@ -500,29 +862,58 @@
 
   <div id="warningsBox"></div>
 
-  <div class="clients-toolbar" id="resultsToolbar" style="display:none;">
-    <button class="pill-btn pill-ghost" id="btnToggleSelectRefs">Selecionar</button>
-    <div class="selection-actions" id="selectionActionsRefs" style="display:none;">
-      <button class="pill-btn pill-ghost" id="btnSelectAllRefs">Selecionar todas</button>
-      <button class="pill-btn pill-danger" id="btnDeleteSelectedRefs" disabled>Apagar selecionadas (0)</button>
-      <button class="pill-btn pill-ghost" id="btnCancelSelectRefs">Cancelar</button>
+  <section class="refs-shell" id="resultsToolbar" style="display:none;">
+    <div class="refs-top">
+      <div class="search-wrap" id="searchWrap">
+        <svg class="search-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+        <input type="text" id="refSearch" placeholder="Buscar referência ou variante..." autocomplete="off">
+        <kbd class="search-kbd">/</kbd>
+        <div class="search-pop" id="searchPop" role="listbox"></div>
+      </div>
+      <div class="seg" id="viewModeSeg" role="tablist">
+        <button type="button" data-v="lote" class="on">Por lote</button>
+        <button type="button" data-v="todos">Todos juntos</button>
+        <span class="seg-ink"></span>
+      </div>
     </div>
-    <label class="sort-select-wrap">
-      <span class="sort-select-icon">⇅</span>
-      <select id="sortModeSelect">
-        <option value="added">Ordem de adição</option>
-        <option value="numeric">Ordem numérica</option>
-        <option value="gerado_pendente">Lookbook: pendentes primeiro</option>
-        <option value="gerado_feito">Lookbook: gerados primeiro</option>
-      </select>
-    </label>
-    <div class="gerado-counter" id="geradoCounter" style="display:none;">
-      <div class="gerado-counter-bar"><div class="gerado-counter-fill" id="geradoCounterFill"></div></div>
-      <span id="geradoCounterText">✅ 0 de 0 lookbooks gerados</span>
+
+    <div class="lote-tabs" id="loteTabs" role="tablist"></div>
+
+    <div class="refs-panel">
+    <div class="filter-bar" id="filterBar">
+      <div class="seg seg-sm" id="generoSeg">
+        <button type="button" data-v="" class="on">Todos</button>
+        <button type="button" data-v="menina">Feminino</button>
+        <button type="button" data-v="menino">Masculino</button>
+        <span class="seg-ink"></span>
+      </div>
+      <div class="dd" id="ddLote"></div>
+      <div class="dd" id="ddGrade"></div>
+      <div class="dd" id="ddStatus"></div>
+      <div class="dd" id="ddSort"></div>
+      <button type="button" class="link-btn" id="btnClearFilters" style="display:none;">Limpar filtros</button>
+      <div class="filter-spacer"></div>
+      <button class="pill-btn pill-ghost pill-sm" id="btnToggleSelectRefs">Selecionar</button>
+      <div class="selection-actions" id="selectionActionsRefs" style="display:none;">
+        <button class="pill-btn pill-ghost pill-sm" id="btnSelectAllRefs">Selecionar visíveis</button>
+        <button class="pill-btn pill-ghost pill-sm" id="btnMoveSelectedRefs" disabled>Mover para lote</button>
+        <button class="pill-btn pill-danger pill-sm" id="btnDeleteSelectedRefs" disabled>Apagar selecionadas (0)</button>
+        <button class="pill-btn pill-ghost pill-sm" id="btnCancelSelectRefs">Cancelar</button>
+      </div>
     </div>
-  </div>
+
+    <div class="scope-bar">
+      <span class="scope-text" id="scopeText"></span>
+      <div class="gerado-counter" id="geradoCounter" style="display:none;">
+        <div class="gerado-counter-bar"><div class="gerado-counter-fill" id="geradoCounterFill"></div></div>
+        <span id="geradoCounterText">0 de 0 gerados</span>
+      </div>
+    </div>
+    </div>
+  </section>
 
   <div class="results" id="results"></div>
+  <div class="empty-state" id="emptyState" style="display:none;"><div class="empty-ico">∅</div><p>Nenhuma referência com esses filtros.</p><button type="button" class="link-btn" onclick="clearFilters()">Limpar filtros</button></div>
 </div>
 </div>
 
@@ -774,7 +1165,11 @@ let refSelectMode = false;
 let selectedRefIndices = new Set();
 // Ordem de exibição dos cards, sem mexer na ordem real de window.__lastResults
 // (que continua sendo a ordem de adição / created_at, usada por padrão).
-let sortMode = 'added'; // 'added' | 'numeric' | 'gerado_pendente' | 'gerado_feito'
+let sortMode = 'added'; // 'added' | 'numeric' | 'numeric_desc' | 'grade' | 'gerado_pendente' | 'gerado_feito'
+let viewMode = 'lote';   // 'lote' (abas) | 'todos' (lotes juntos)
+let activeLote = null; // null = ainda não escolhido (abre o primeiro lote)
+let filterGenero = '', filterGrade = '', filterStatus = '', filterLote = '', searchQuery = '';
+let loteStore = {extra:[], order:[], colors:{}}; // lotes vazios + ordem manual das abas
 
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('fileInput');
@@ -837,7 +1232,7 @@ const REF_FIELD_SPEC = [
   ['parte_baixo_tem','str'], ['parte_baixo_txt','str'], ['parte_baixo_qtd_fotos','num'],
   ['cinto_tem','str'], ['cinto_txt','str'], ['cinto_qtd_fotos','num'],
   ['braco_acessorio_tem','str'], ['braco_acessorio_txt','str'], ['braco_acessorio_qtd_fotos','num'],
-  ['cadarco','str'], ['cadarco_estilo','str'], ['por_dentro','str'], ['mao_bolso','str'], ['foto_costas','str'],
+  ['cadarco','str'], ['cadarco_estilo','str'], ['por_dentro','str'], ['mao_bolso','str'], ['foto_costas','str'], ['destaque_tem','str'], ['destaque_txt','str'],
   ['comprimento_especificar','str'], ['comprimento_txt','str'],
   ['calcado_usa','str'], ['calcado_txt','str'], ['calcado_qtd_fotos','num'],
   ['obs','str']
@@ -1504,6 +1899,7 @@ function showConflictModal(codes){
 }
 
 async function loadClientData(clientId){
+  loadViewPrefs();
   refSelectMode = false;
   selectedRefIndices = new Set();
   document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
@@ -1532,6 +1928,7 @@ async function loadClientData(clientId){
     dbId: row.id,
     codigo: row.codigo,
     variante: (row.raw && row.raw.variante) || '',
+    lote: (row.raw && row.raw.lote) || '',
     grade: row.grade,
     genero: row.genero,
     category: POSE_CATEGORY_BY_GRADE[row.grade] || 'adulto',
@@ -1560,9 +1957,12 @@ function updateDeleteSelectedRefsLabel(){
   const btn = document.getElementById('btnDeleteSelectedRefs');
   btn.textContent = `Apagar selecionadas (${selectedRefIndices.size})`;
   btn.disabled = selectedRefIndices.size === 0;
+  const mv = document.getElementById('btnMoveSelectedRefs');
+  if (mv){ mv.disabled = selectedRefIndices.size === 0; mv.textContent = `Mover para lote (${selectedRefIndices.size})`; }
 }
 
 document.getElementById('btnToggleSelectRefs').addEventListener('click', () => {
+  snapshotPrompts();
   refSelectMode = true;
   selectedRefIndices.clear();
   document.getElementById('btnToggleSelectRefs').style.display = 'none';
@@ -1570,12 +1970,8 @@ document.getElementById('btnToggleSelectRefs').addEventListener('click', () => {
   renderResults(window.__lastResults || [], []);
   wireAutosave();
 });
-document.getElementById('sortModeSelect').addEventListener('change', (e) => {
-  sortMode = e.target.value;
-  renderResults(window.__lastResults || [], []);
-  wireAutosave();
-});
 document.getElementById('btnCancelSelectRefs').addEventListener('click', () => {
+  snapshotPrompts();
   refSelectMode = false;
   selectedRefIndices.clear();
   document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
@@ -1584,14 +1980,16 @@ document.getElementById('btnCancelSelectRefs').addEventListener('click', () => {
   wireAutosave();
 });
 document.getElementById('btnSelectAllRefs').addEventListener('click', () => {
-  (window.__lastResults || []).forEach((_, i) => selectedRefIndices.add(i));
-  document.querySelectorAll('.ref-check').forEach(cb => { cb.checked = true; });
+  document.querySelectorAll('.card:not(.is-hidden) .ref-check').forEach(cb => {
+    cb.checked = true; selectedRefIndices.add(parseInt(cb.dataset.idx, 10));
+  });
   updateDeleteSelectedRefsLabel();
 });
 document.getElementById('btnDeleteSelectedRefs').addEventListener('click', () => {
   if (!selectedRefIndices.size) return;
   const n = selectedRefIndices.size;
   showConfirm(`Apagar ${n} referência(s) selecionada(s)? Essa ação não pode ser desfeita.`, async () => {
+    snapshotPrompts();
     const idxDesc = Array.from(selectedRefIndices).sort((a,b) => b - a); // maior pro menor, pra não bagunçar índices ao remover
     const idsToDelete = idxDesc.map(i => window.__lastResults[i] && window.__lastResults[i].dbId).filter(Boolean);
 
@@ -1620,8 +2018,638 @@ document.getElementById('btnDeleteSelectedRefs').addEventListener('click', () =>
 });
 
 
+// ================= Lotes, busca e filtros =================
+// Os dados nunca são reordenados: tudo aqui só decide QUAIS cards aparecem
+// e EM QUE ORDEM, movendo os nós do DOM que renderResults() já criou.
+function getLote(r){ return String((r && (r.lote || (r.raw && r.raw.lote))) || '').trim(); }
+// Lote guardado como texto livre: "1", "2", "Conceitos"... Número puro vira "Lote N".
+function loteLabel(v){ v = String(v || '').trim(); return !v ? 'Sem lote' : (/^\d+$/.test(v) ? `Lote ${v}` : v); }
+function normLote(v){ v = String(v || '').trim().replace(/\s+/g, ' '); const m = v.match(/^lote\s*(\d+)$/i); return m ? m[1] : v; }
+function isConceitoLote(v){ return /conceito/i.test(String(v || '')); }
+const LOTE_CORES = ['#1f8a70', '#2f6fdb', '#d9822b', '#7a5bd6', '#d1495b', '#0f9bb5', '#8c9a1f'];
+function loteCor(v){
+  if (isConceitoLote(v)) return 'var(--conceito)';
+  if (!v) return 'var(--muted)';
+  // A cor pertence ao lote: é escolhida uma vez (a primeira livre) e fica
+  // com ele mesmo que a ordem das abas mude. Só é liberada ao excluir o lote.
+  const cores = loteStore.colors || (loteStore.colors = {});
+  if (cores[v] == null){
+    const usadas = new Set(Object.values(cores));
+    let k = 0; while (usadas.has(k) && k < LOTE_CORES.length) k++;
+    if (k >= LOTE_CORES.length) k = Object.keys(cores).length % LOTE_CORES.length;
+    cores[v] = k; saveLoteStore();
+  }
+  return LOTE_CORES[cores[v] % LOTE_CORES.length];
+}
+function loteChip(v){
+  return `<span class="lote-chip${isConceitoLote(v) ? ' conceito' : ''}" style="--lc:${loteCor(v)}">${escapeHtml(loteLabel(v))}</span>`;
+}
+
+// Modal "Em qual lote vai este PDF?" — sugere o lote detectado e os já existentes.
+function askLote(fileName, detected, opts){
+  opts = opts || {};
+  return new Promise(resolve => {
+    const modal = document.getElementById('loteModal');
+    const input = document.getElementById('loteModalInput');
+    const lotes = lotesOf(window.__lastResults || []).filter(Boolean);
+    document.getElementById('loteModalTitle').textContent = opts.title || 'Em qual lote vai este PDF?';
+    document.getElementById('loteModalFile').textContent = fileName;
+    document.getElementById('loteModalHint').textContent = opts.hint || (detected ? `Detectado no PDF: ${loteLabel(detected)}` : 'Não encontrei o lote no PDF. Digite um nome ou número.');
+    input.value = detected || '';
+    const chips = document.getElementById('loteModalChips');
+    chips.innerHTML = lotes.length ? `<span class="lote-modal-k">Lotes deste cliente</span>` + lotes.map(l => `<button type="button" data-l="${escapeHtml(l)}">${loteChip(l)}</button>`).join('') : '';
+    chips.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { input.value = b.dataset.l; input.focus(); }));
+    modal.style.display = 'flex';
+    setTimeout(() => { input.focus(); input.select(); }, 30);
+    const ok = document.getElementById('btnLoteOk');
+    const cancel = document.getElementById('btnLoteCancel');
+    cancel.style.display = opts.cancel ? '' : 'none';
+    cancel.onclick = () => { modal.style.display = 'none'; resolve(null); };
+    const done = () => { modal.style.display = 'none'; ok.onclick = null; input.onkeydown = null; resolve(normLote(input.value)); };
+    ok.onclick = done;
+    input.onkeydown = e => { if (e.key === 'Enter') done(); };
+  });
+}
+
+// Renomeia um lote: troca o valor em todas as referências dele e salva no banco.
+async function renameLote(oldV, newRaw){
+  const newV = normLote(newRaw);
+  if (newV === oldV) return;
+  const results = window.__lastResults || [];
+  const afetadas = results.filter(r => getLote(r) === oldV);
+  afetadas.forEach(r => { r.lote = newV; if (!r.raw) r.raw = {}; r.raw.lote = newV; });
+  loteStore.extra = [...new Set(loteStore.extra.map(l => l === oldV ? newV : l))];
+  loteStore.order = [...new Set(loteStore.order.map(l => l === oldV ? newV : l))];
+  if (loteStore.colors && loteStore.colors[oldV] != null && loteStore.colors[newV] == null) loteStore.colors[newV] = loteStore.colors[oldV];
+  if (loteStore.colors) delete loteStore.colors[oldV];
+  saveLoteStore();
+  if (activeLote === oldV) activeLote = newV;
+  if (filterLote === oldV) filterLote = newV;
+  saveViewPrefs();
+  results.forEach((r, i) => {
+    const chip = document.querySelector(`.card[data-idx="${i}"] .lote-chip`);
+    if (chip) chip.outerHTML = loteChip(getLote(r));
+  });
+  renderLoteTabs(); renderFilterMenus(); applyView({animate:false});
+  showToast(`${loteLabel(oldV)} agora é ${loteLabel(newV)}`);
+  for (const r of afetadas){
+    if (!r.dbId) continue;
+    const { error } = await sb.from('client_refs').update({ raw: r.raw, updated_at: new Date().toISOString() }).eq('id', r.dbId);
+    if (error) console.warn('Falha ao salvar novo nome do lote', r.codigo, error);
+  }
+}
+function startRenameTab(btn){
+  const old = btn.dataset.lote;
+  const nameEl = btn.querySelector('.tab-name');
+  if (!nameEl || btn.querySelector('input')) return;
+  const input = document.createElement('input');
+  input.className = 'tab-rename'; input.value = old ? loteLabel(old) : '';
+  input.placeholder = 'Nome do lote';
+  nameEl.replaceWith(input);
+  input.focus(); input.select();
+  let finished = false;
+  const finish = (save) => {
+    if (finished) return; finished = true;
+    if (save && input.value.trim()) renameLote(old, input.value); else renderLoteTabs();
+  };
+  input.addEventListener('click', e => e.stopPropagation());
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
+  input.addEventListener('blur', () => finish(true));
+}
+
+// Avisos de repetição (só informativos): mesmo código no mesmo PDF e em outros lotes.
+function updateDupNotes(){
+  const results = window.__lastResults || [];
+  const porCodigo = {};
+  results.forEach((r, i) => (porCodigo[r.codigo] = porCodigo[r.codigo] || []).push(i));
+  results.forEach((r, i) => {
+    const el = document.getElementById(`dup-notes-${i}`); if (!el) return;
+    const outras = (porCodigo[r.codigo] || []).filter(j => j !== i).map(j => results[j]);
+    const notas = [];
+    const mesmoPdf = outras.filter(o => o.source === r.source && getLote(o) === getLote(r));
+    if (mesmoPdf.length) notas.push(`<div class="dup-note dup-pdf"><span>⧉</span>Esta peça também está neste PDF como ${mesmoPdf.map(o => `<b>${escapeHtml(o.grade || '')} · ${generoLabel(o.genero)}</b>`).join(', ')}</div>`);
+    const outrosLotes = [...new Set(outras.map(getLote).filter(l => l !== getLote(r)))];
+    if (outrosLotes.length) notas.push(`<div class="dup-note dup-lote"><span>⇄</span>Esta referência também está em ${outrosLotes.map(loteChip).join(' ')} <span class="dup-all">(aparece em ${outrosLotes.length + 1} lotes)</span></div>`);
+    el.innerHTML = notas.join('');
+  });
+}
+function loteFromText(t){ const m = String(t || '').match(/\bLote\s*(\d+)\b/i); return m ? m[1] : ''; }
+function loteFromFileName(n){ const m = String(n || '').match(/lote[\s_\-]*(\d+)/i); return m ? m[1] : ''; }
+function refKey(r){ return `${r.codigo}|${(r.grade || '').trim()}|${(r.genero || '').trim().toLowerCase()}`; }
+function generoLabel(g){ const v = (g || '').toLowerCase(); return v === 'menina' ? 'Feminino' : v === 'menino' ? 'Masculino' : (g || ''); }
+function destaqueTexto(r){ return String((r && r.raw && r.raw.destaque_txt) || '').trim(); }
+function needsDestaque(r){ return !!(r && r.raw && (isSim(r.raw.destaque_tem) || destaqueTexto(r))); }
+function normStr(s){ return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+function lotesOf(results){
+  const set = [...new Set([...results.map(getLote), ...loteStore.extra])];
+  const ord = loteStore.order;
+  return set.sort((a, b) => {
+    if (!a) return 1; if (!b) return -1;
+    const ia = ord.indexOf(a), ib = ord.indexOf(b);
+    if (ia >= 0 || ib >= 0) return (ia < 0 ? 1e9 : ia) - (ib < 0 ? 1e9 : ib);
+    if (!a) return 1; if (!b) return -1;              // "Sem lote" por último
+    const na = /^\d+$/.test(a), nb = /^\d+$/.test(b);
+    if (na && nb) return parseInt(a, 10) - parseInt(b, 10);
+    if (na !== nb) return na ? -1 : 1;                // números antes dos nomes
+    return a.localeCompare(b, 'pt-BR', {numeric:true, sensitivity:'base'});
+  });
+}
+function ensureValidLote(){
+  const lotes = lotesOf(window.__lastResults || []);
+  if (activeLote === null || !lotes.includes(activeLote)) activeLote = lotes.length ? lotes[0] : '';
+}
+function prefsKey(){ return `lookbook_view_${window.__currentClient ? window.__currentClient.id : 'local'}`; }
+function saveViewPrefs(){
+  try{ localStorage.setItem(prefsKey(), JSON.stringify({viewMode, sortMode, activeLote})); }catch(e){}
+}
+function loadViewPrefs(){
+  loadLoteStore();
+  viewMode = 'lote'; sortMode = 'added'; activeLote = null;
+  filterGenero = ''; filterGrade = ''; filterStatus = ''; filterLote = ''; searchQuery = '';
+  const input = document.getElementById('refSearch'); if (input) input.value = '';
+  try{
+    const p = JSON.parse(localStorage.getItem(prefsKey()) || 'null');
+    if (p){ viewMode = p.viewMode === 'todos' ? 'todos' : 'lote'; sortMode = p.sortMode || 'added'; activeLote = (typeof p.activeLote === 'string') ? p.activeLote : null; }
+  }catch(e){}
+  setSeg('viewModeSeg', viewMode); setSeg('generoSeg', '');
+}
+
+function filtersActive(){ return !!(filterGenero || filterGrade || filterStatus || searchQuery || (viewMode === 'todos' && filterLote)); }
+function inScope(r){ return viewMode === 'todos' ? (!filterLote || getLote(r) === filterLote) : getLote(r) === activeLote; }
+function matchesFilters(r){
+  if (!inScope(r)) return false;
+  if (filterGenero && (r.genero || '').toLowerCase() !== filterGenero) return false;
+  if (filterGrade && (r.grade || '').trim() !== filterGrade) return false;
+  if (filterStatus === 'pendente' && isGerado(r)) return false;
+  if (filterStatus === 'gerado' && !isGerado(r)) return false;
+  if (filterStatus === 'destaque' && !needsDestaque(r)) return false;
+  if (searchQuery){
+    const hay = normStr(`${r.codigo} ${getVariante(r)}`);
+    if (!normStr(searchQuery).split(/\s+/).every(t => hay.includes(t))) return false;
+  }
+  return true;
+}
+function codeNum(r){ const n = parseInt(String(r.codigo || '').replace(/\D/g, ''), 10); return isNaN(n) ? Infinity : n; }
+function sortedIndices(results){
+  const idx = results.map((_, i) => i);
+  const gradeIdx = r => { const k = KNOWN_GRADES.indexOf((r.grade || '').trim()); return k < 0 ? 99 : k; };
+  const byCode = (a, b) => (codeNum(results[a]) - codeNum(results[b])) || (gradeIdx(results[a]) - gradeIdx(results[b])) || (a - b);
+  if (sortMode === 'numeric') idx.sort(byCode);
+  else if (sortMode === 'numeric_desc') idx.sort((a, b) => byCode(b, a));
+  else if (sortMode === 'gerado_pendente') idx.sort((a, b) => (isGerado(results[a]) - isGerado(results[b])) || (a - b));
+  else if (sortMode === 'gerado_feito') idx.sort((a, b) => (isGerado(results[b]) - isGerado(results[a])) || (a - b));
+  else if (sortMode === 'grade') idx.sort((a, b) => (gradeIdx(results[a]) - gradeIdx(results[b])) || ((results[a].genero || '') > (results[b].genero || '') ? 1 : -1) || byCode(a, b));
+  return idx;
+}
+
+function applyView(opts){
+  const animate = !!(opts && opts.animate);
+  const results = window.__lastResults || [];
+  const container = document.getElementById('results');
+  const byIdx = {};
+  container.querySelectorAll(':scope > .card').forEach(el => { byIdx[el.dataset.idx] = el; });
+  const shown = [];
+  sortedIndices(results).forEach(i => {
+    const el = byIdx[i]; if (!el) return;
+    container.appendChild(el);
+    const ok = matchesFilters(results[i]);
+    el.classList.toggle('is-hidden', !ok);
+    if (ok) shown.push(el);
+  });
+  container.classList.toggle('mode-todos', viewMode === 'todos');
+  if (animate){
+    shown.forEach(el => el.classList.remove('enter'));
+    void container.offsetWidth;
+    shown.forEach((el, n) => { el.style.setProperty('--d', `${Math.min(n, 12) * 32}ms`); el.classList.add('enter'); });
+  }
+  document.getElementById('emptyState').style.display = (results.length && !shown.length) ? 'flex' : 'none';
+  const scopeCount = results.filter(inScope).length;
+  const where = viewMode === 'todos' ? (filterLote ? loteLabel(filterLote) : 'Todos os lotes') : loteLabel(activeLote);
+  document.getElementById('scopeText').innerHTML = filtersActive()
+    ? `<b>${where}</b> · mostrando ${shown.length} de ${scopeCount}`
+    : `<b>${where}</b> · ${scopeCount} referência${scopeCount === 1 ? '' : 's'}`;
+  document.getElementById('btnClearFilters').style.display = filtersActive() ? 'inline-flex' : 'none';
+  document.getElementById('ddLote').style.display = viewMode === 'todos' ? '' : 'none';
+  document.getElementById('resultsToolbar').classList.toggle('mode-todos', viewMode === 'todos');
+  updateDupNotes();
+  updateGeradoCounter();
+  requestAnimationFrame(() => { placeInk('viewModeSeg'); placeInk('generoSeg'); });
+}
+
+// ---------- abas de lote ----------
+function renderLoteTabs(){
+  const el = document.getElementById('loteTabs');
+  if (!el) return;
+  const results = window.__lastResults || [];
+  el.innerHTML = lotesOf(results).map(l => {
+    const refs = results.filter(r => getLote(r) === l);
+    const done = refs.filter(isGerado).length;
+    const pct = refs.length ? Math.round(done / refs.length * 100) : 0;
+    return `<div role="tab" tabindex="0" draggable="${l ? 'true' : 'false'}" class="lote-tab${l === activeLote ? ' on' : ''}${pct === 100 ? ' complete' : ''}${isConceitoLote(l) ? ' conceito' : ''}" data-lote="${escapeHtml(l)}" aria-selected="${l === activeLote}" style="--lc:${loteCor(l)}" title="Clique duplo para renomear · arraste para mudar a ordem">
+      <span class="tab-dot"></span>
+      <span class="tab-name">${escapeHtml(loteLabel(l))}</span>
+      <span class="tab-count">${pct === 100 ? '✓ ' : ''}${refs.length}</span>
+      <button type="button" class="tab-edit" title="Opções do lote" aria-label="Opções do lote">⋯</button>
+      <span class="tab-prog"><span style="width:${pct}%"></span></span>
+    </div>`;
+  }).join('') + `<button type="button" class="lote-tab-new" id="btnNewLote" title="Criar lote em branco" aria-label="Criar lote">+</button>`;
+  document.getElementById('btnNewLote').addEventListener('click', e => { e.stopPropagation(); createLote(); });
+  el.querySelectorAll('.lote-tab').forEach(tab => {
+    tab.addEventListener('dragstart', e => { tab.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', tab.dataset.lote); });
+    tab.addEventListener('dragend', () => { tab.classList.remove('dragging'); el.querySelectorAll('.drop-before').forEach(t => t.classList.remove('drop-before')); });
+    tab.addEventListener('dragover', e => { e.preventDefault(); el.querySelectorAll('.drop-before').forEach(t => t.classList.remove('drop-before')); tab.classList.add('drop-before'); });
+    tab.addEventListener('drop', e => { e.preventDefault(); const v = e.dataTransfer.getData('text/plain'); if (v && v !== tab.dataset.lote) reorderLote(v, tab.dataset.lote || null); });
+    const open = () => {
+      if (activeLote === tab.dataset.lote) return;
+      activeLote = tab.dataset.lote;
+      saveViewPrefs(); renderLoteTabs(); renderFilterMenus(); applyView({animate:true});
+    };
+    tab.addEventListener('click', open);
+    tab.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target === tab) open(); });
+    tab.addEventListener('dblclick', e => { e.preventDefault(); startRenameTab(tab); });
+    tab.querySelector('.tab-edit').addEventListener('click', e => { e.stopPropagation(); openLoteMenu(tab, e.currentTarget); });
+  });
+  const on = el.querySelector('.lote-tab.on');
+  if (on && on.scrollIntoView) on.scrollIntoView({block:'nearest', inline:'nearest'});
+  const shell = document.getElementById('resultsToolbar');
+  if (shell){ shell.style.setProperty('--lc-active', viewMode === 'todos' ? 'var(--accent)' : loteCor(activeLote)); shell.classList.toggle('lote-conceito', viewMode === 'lote' && isConceitoLote(activeLote)); }
+}
+
+// ---------- segmented controls ----------
+function setSeg(id, value){
+  const el = document.getElementById(id); if (!el) return;
+  el.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === value));
+  placeInk(id);
+}
+function placeInk(id){
+  const el = document.getElementById(id); if (!el) return;
+  const on = el.querySelector('button.on'); const ink = el.querySelector('.seg-ink');
+  if (!on || !ink || !on.offsetWidth) return;
+  ink.style.width = `${on.offsetWidth}px`; ink.style.transform = `translateX(${on.offsetLeft - 3}px)`;
+}
+function wireSeg(id, onChange){
+  const el = document.getElementById(id);
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { setSeg(id, b.dataset.v); onChange(b.dataset.v); }));
+}
+
+// ---------- dropdowns ----------
+function renderDD(id, cfg){
+  const el = document.getElementById(id); if (!el) return;
+  const cur = cfg.options.find(o => o.v === cfg.value) || cfg.options[0];
+  const isActive = cfg.value !== cfg.options[0].v && !cfg.neutral;
+  el.innerHTML = `<button type="button" class="dd-btn${isActive ? ' active' : ''}" aria-haspopup="listbox">
+      <span class="dd-k">${cfg.label}</span><span class="dd-v">${escapeHtml(cur.l)}</span>
+      <svg class="dd-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+    </button>
+    <div class="dd-menu" role="listbox">${cfg.options.map(o => `
+      <button type="button" class="dd-opt${o.v === cfg.value ? ' sel' : ''}" data-v="${escapeHtml(o.v)}">
+        <span>${escapeHtml(o.l)}</span>${o.c != null ? `<span class="dd-c">${o.c}</span>` : '<span class="dd-check">✓</span>'}
+      </button>`).join('')}</div>`;
+  el.querySelector('.dd-btn').addEventListener('click', e => {
+    e.stopPropagation();
+    const wasOpen = el.classList.contains('open');
+    document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open'));
+    if (!wasOpen) el.classList.add('open');
+  });
+  el.querySelectorAll('.dd-opt').forEach(o => o.addEventListener('click', e => {
+    e.stopPropagation(); el.classList.remove('open'); cfg.onChange(o.dataset.v);
+  }));
+}
+document.addEventListener('click', () => document.querySelectorAll('.dd.open').forEach(d => d.classList.remove('open')));
+
+function renderFilterMenus(){
+  const results = window.__lastResults || [];
+  const scope = results.filter(inScope);
+  const count = fn => scope.filter(fn).length;
+  const grades = KNOWN_GRADES.filter(g => results.some(r => (r.grade || '').trim() === g));
+  const extra = [...new Set(results.map(r => (r.grade || '').trim()))].filter(g => g && !KNOWN_GRADES.includes(g));
+  renderDD('ddLote', {label:'Lote', value:filterLote, options:[{v:'', l:'Todos', c:results.length}, ...lotesOf(results).map(l => ({v:l, l:loteLabel(l), c:results.filter(r => getLote(r) === l).length}))],
+    onChange: v => { filterLote = v; refreshView(); }});
+  renderDD('ddGrade', {label:'Grade', value:filterGrade, options:[{v:'', l:'Todas', c:scope.length}, ...[...grades, ...extra].map(g => ({v:g, l:g, c:count(r => (r.grade || '').trim() === g)}))],
+    onChange: v => { filterGrade = v; refreshView(); }});
+  renderDD('ddStatus', {label:'Status', value:filterStatus, options:[
+      {v:'', l:'Todos', c:scope.length},
+      {v:'pendente', l:'Pendentes', c:count(r => !isGerado(r))},
+      {v:'gerado', l:'Gerados', c:count(isGerado)},
+      {v:'destaque', l:'Com destaque na peça', c:count(needsDestaque)}],
+    onChange: v => { filterStatus = v; refreshView(); }});
+  renderDD('ddSort', {label:'Ordem', value:sortMode, neutral:true, options:[
+      {v:'added', l:'Ordem de adição'}, {v:'numeric', l:'Numérica crescente'}, {v:'numeric_desc', l:'Numérica decrescente'},
+      {v:'grade', l:'Por grade e gênero'}, {v:'gerado_pendente', l:'Pendentes primeiro'}, {v:'gerado_feito', l:'Gerados primeiro'}],
+    onChange: v => { sortMode = v; saveViewPrefs(); refreshView(); }});
+}
+function refreshView(){ renderFilterMenus(); applyView({animate:true}); }
+function clearFilters(){
+  filterGenero = ''; filterGrade = ''; filterStatus = ''; filterLote = ''; searchQuery = '';
+  document.getElementById('refSearch').value = ''; closeSearchPop();
+  setSeg('generoSeg', ''); refreshView();
+}
+
+// ---------- busca com resultados em todos os lotes ----------
+let searchSel = 0;
+function searchMatches(q){
+  const results = window.__lastResults || [];
+  const terms = normStr(q).split(/\s+/).filter(Boolean);
+  if (!terms.length) return [];
+  return results.map((r, i) => ({r, i})).filter(({r}) => {
+    const hay = normStr(`${r.codigo} ${getVariante(r)}`);
+    return terms.every(t => hay.includes(t));
+  }).sort((a, b) => {
+    const qa = String(a.r.codigo).startsWith(terms[0]) ? 0 : 1, qb = String(b.r.codigo).startsWith(terms[0]) ? 0 : 1;
+    return (qa - qb) || (codeNum(a.r) - codeNum(b.r));
+  }).slice(0, 10);
+}
+function renderSearchPop(){
+  const pop = document.getElementById('searchPop');
+  const list = searchMatches(searchQuery);
+  if (!searchQuery.trim()){ closeSearchPop(); return; }
+  if (searchSel >= list.length) searchSel = 0;
+  pop.innerHTML = list.length ? list.map(({r, i}, n) => `
+    <button type="button" class="sr${n === searchSel ? ' on' : ''}" data-i="${i}">
+      <span class="sr-dot${isGerado(r) ? ' ok' : ''}" title="${isGerado(r) ? 'Lookbook gerado' : 'Pendente'}"></span>
+      <span class="sr-main"><span class="sr-code">Ref. ${escapeHtml(String(r.codigo))}${getVariante(r) ? ` <span class="sr-var">| ${escapeHtml(getVariante(r))}</span>` : ''}${needsDestaque(r) ? ' <span class="sr-star" title="Destaque na peça">★</span>' : ''}</span>
+      <span class="sr-sub">${escapeHtml(r.grade || '')} · ${generoLabel(r.genero)}</span></span>
+      ${loteChip(getLote(r))}
+    </button>`).join('') : `<div class="sr-empty">Nenhuma referência encontrada em nenhum lote.</div>`;
+  pop.querySelectorAll('.sr').forEach(b => b.addEventListener('mousedown', e => { e.preventDefault(); jumpToRef(parseInt(b.dataset.i, 10)); }));
+  document.getElementById('searchWrap').classList.add('open');
+}
+function closeSearchPop(){ document.getElementById('searchWrap').classList.remove('open'); }
+function jumpToRef(i){
+  const r = (window.__lastResults || [])[i]; if (!r) return;
+  if (viewMode === 'lote') activeLote = getLote(r); else filterLote = '';
+  filterGenero = ''; filterGrade = ''; filterStatus = ''; searchQuery = '';
+  document.getElementById('refSearch').value = ''; closeSearchPop(); setSeg('generoSeg', '');
+  saveViewPrefs(); renderLoteTabs(); renderFilterMenus(); applyView({animate:false});
+  const card = document.querySelector(`.card[data-idx="${i}"]`);
+  if (card){
+    card.scrollIntoView({behavior:'smooth', block:'center'});
+    card.classList.remove('flash'); void card.offsetWidth; card.classList.add('flash');
+  }
+}
+
+function wireViewControls(){
+  wireSeg('viewModeSeg', v => { viewMode = v; filterLote = ''; ensureValidLote(); saveViewPrefs(); renderLoteTabs(); refreshView(); });
+  wireSeg('generoSeg', v => { filterGenero = v; refreshView(); });
+  document.getElementById('btnClearFilters').addEventListener('click', clearFilters);
+  const input = document.getElementById('refSearch');
+  input.addEventListener('input', () => { searchQuery = input.value; searchSel = 0; renderSearchPop(); renderFilterMenus(); applyView({animate:false}); });
+  input.addEventListener('focus', () => { if (searchQuery.trim()) renderSearchPop(); });
+  input.addEventListener('blur', () => setTimeout(closeSearchPop, 120));
+  input.addEventListener('keydown', e => {
+    const list = searchMatches(searchQuery);
+    if (e.key === 'ArrowDown'){ e.preventDefault(); searchSel = Math.min(searchSel + 1, list.length - 1); renderSearchPop(); }
+    else if (e.key === 'ArrowUp'){ e.preventDefault(); searchSel = Math.max(searchSel - 1, 0); renderSearchPop(); }
+    else if (e.key === 'Enter' && list[searchSel]){ e.preventDefault(); jumpToRef(list[searchSel].i); input.blur(); }
+    else if (e.key === 'Escape'){ input.value = ''; searchQuery = ''; closeSearchPop(); refreshView(); input.blur(); }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key !== '/' || e.metaKey || e.ctrlKey) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))) return;
+    if (document.getElementById('appScreen').style.display === 'none') return;
+    e.preventDefault(); input.focus();
+  });
+  window.addEventListener('resize', () => { placeInk('viewModeSeg'); placeInk('generoSeg'); });
+}
+wireViewControls();
+
+// ================= Gestão de lotes (criar, mover, excluir) =================
+// Lotes vazios e a ordem manual das abas ficam salvos neste navegador, por cliente.
+function loteStoreKey(){ return `lookbook_lotes_${window.__currentClient ? window.__currentClient.id : 'local'}`; }
+function loadLoteStore(){
+  loteStore = {extra:[], order:[], colors:{}};
+  try{ const v = JSON.parse(localStorage.getItem(loteStoreKey()) || 'null'); if (v) loteStore = {extra: v.extra || [], order: v.order || [], colors: v.colors || {}}; }catch(e){}
+}
+function saveLoteStore(){ try{ localStorage.setItem(loteStoreKey(), JSON.stringify(loteStore)); }catch(e){} }
+
+// Guarda no objeto o HTML atual de cada prompt (edições e poses inseridas),
+// pra nada se perder quando os cards precisam ser recriados.
+function snapshotPrompts(){
+  (window.__lastResults || []).forEach((r, i) => {
+    const box = document.getElementById(`prompt-${i}`);
+    if (box && document.querySelector(`.card[data-idx="${i}"]`)) r.savedHtml = box.innerHTML;
+  });
+}
+
+function refreshLotesUI(){ ensureValidLote(); saveViewPrefs(); renderLoteTabs(); renderFilterMenus(); applyView({animate:false}); }
+
+// Troca o lote de várias referências de uma vez (mover / excluir lote movendo).
+async function setRefsLote(list, newV){
+  list.forEach(r => { r.lote = newV; if (!r.raw) r.raw = {}; r.raw.lote = newV; });
+  (window.__lastResults || []).forEach((r, i) => {
+    const chip = document.querySelector(`.card[data-idx="${i}"] .lote-chip`);
+    if (chip) chip.outerHTML = loteChip(getLote(r));
+  });
+  for (const r of list){
+    if (!r.dbId) continue;
+    const { error } = await sb.from('client_refs').update({ raw: r.raw, updated_at: new Date().toISOString() }).eq('id', r.dbId);
+    if (error) console.warn('Falha ao mover referência de lote', r.codigo, error);
+  }
+}
+async function deleteRefs(list){
+  snapshotPrompts();
+  const ids = list.map(r => r.dbId).filter(Boolean);
+  if (ids.length){
+    const { error } = await sb.from('client_refs').delete().in('id', ids);
+    if (error){ alert('Erro ao apagar no banco: ' + error.message); return false; }
+  }
+  const set = new Set(list);
+  const keep = [], keepStates = [];
+  (window.__lastResults || []).forEach((r, i) => { if (!set.has(r)){ keep.push(r); keepStates.push(poseStates[i]); } });
+  window.__lastResults = keep; poseStates = keepStates;
+  selectedRefIndices.clear();
+  renderResults(window.__lastResults, []); wireAutosave();
+  return true;
+}
+
+function createLote(){
+  const tabs = document.getElementById('loteTabs');
+  if (tabs.querySelector('.lote-tab.new')) return;
+  const tmp = document.createElement('div');
+  tmp.className = 'lote-tab new on'; tmp.style.setProperty('--lc', 'var(--accent)');
+  tmp.innerHTML = `<span class="tab-dot"></span><input class="tab-rename" placeholder="Nome do novo lote">`;
+  tabs.insertBefore(tmp, document.getElementById('btnNewLote'));
+  const input = tmp.querySelector('input'); input.focus();
+  let done = false;
+  const finish = ok => {
+    if (done) return; done = true;
+    const v = normLote(input.value);
+    if (ok && v && !lotesOf(window.__lastResults || []).includes(v)){
+      loteStore.extra.push(v); saveLoteStore();
+      activeLote = v; if (viewMode === 'todos'){ viewMode = 'lote'; setSeg('viewModeSeg', 'lote'); }
+      refreshLotesUI(); showToast(`${loteLabel(v)} criado`);
+    } else {
+      if (ok && v) showToast(`${loteLabel(v)} já existe`);
+      renderLoteTabs();
+    }
+  };
+  input.addEventListener('keydown', e => { if (e.key === 'Enter') finish(true); if (e.key === 'Escape') finish(false); });
+  input.addEventListener('blur', () => finish(true));
+}
+
+function moveLote(v, dir){
+  const lotes = lotesOf(window.__lastResults || []).filter(Boolean);
+  const k = lotes.indexOf(v), j = k + dir;
+  if (k < 0 || j < 0 || j >= lotes.length) return;
+  [lotes[k], lotes[j]] = [lotes[j], lotes[k]];
+  loteStore.order = lotes; saveLoteStore(); renderLoteTabs();
+}
+function reorderLote(v, beforeV){
+  const lotes = lotesOf(window.__lastResults || []).filter(Boolean).filter(l => l !== v);
+  const k = beforeV == null ? lotes.length : lotes.indexOf(beforeV);
+  lotes.splice(k < 0 ? lotes.length : k, 0, v);
+  loteStore.order = lotes; saveLoteStore(); renderLoteTabs();
+}
+
+function forgetLote(v){
+  loteStore.extra = loteStore.extra.filter(l => l !== v);
+  loteStore.order = loteStore.order.filter(l => l !== v);
+  if (loteStore.colors) delete loteStore.colors[v];
+  saveLoteStore();
+  if (activeLote === v) activeLote = null;
+  if (filterLote === v) filterLote = '';
+}
+function deleteLote(v){
+  const results = window.__lastResults || [];
+  const refs = results.filter(r => getLote(r) === v);
+  if (!refs.length){
+    forgetLote(v); refreshLotesUI();
+    document.getElementById('resultsToolbar').style.display = (results.length || loteStore.extra.length) ? 'flex' : 'none';
+    showToast(`${loteLabel(v)} excluído`);
+    return;
+  }
+  const modal = document.getElementById('loteDeleteModal');
+  const gerados = refs.filter(isGerado).length;
+  document.getElementById('loteDelTitle').textContent = `Excluir ${loteLabel(v)}?`;
+  document.getElementById('loteDelText').innerHTML = `Este lote tem <b>${refs.length} referência${refs.length === 1 ? '' : 's'}</b>${gerados ? ` (${gerados} com lookbook gerado)` : ''}. Você pode mover tudo para outro lote antes de excluir, ou excluir o lote junto com as referências.`;
+  const destinos = lotesOf(results).filter(l => l !== v);
+  if (!destinos.includes('')) destinos.push('');
+  let alvo = null;
+  const box = document.getElementById('loteDelTargets');
+  box.innerHTML = destinos.map(l => `<button type="button" data-l="${escapeHtml(l)}">${loteChip(l)}</button>`).join('');
+  const moveBtn = document.getElementById('btnLoteDelMove');
+  moveBtn.disabled = true;
+  box.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    alvo = b.dataset.l; box.querySelectorAll('button').forEach(x => x.classList.toggle('sel', x === b)); moveBtn.disabled = false;
+  }));
+  const close = () => { modal.style.display = 'none'; };
+  document.getElementById('btnLoteDelCancel').onclick = close;
+  moveBtn.onclick = async () => {
+    if (alvo === null) return;
+    close();
+    await setRefsLote(refs, alvo);
+    forgetLote(v); activeLote = alvo; refreshLotesUI();
+    showToast(`${refs.length} referência${refs.length === 1 ? '' : 's'} movida${refs.length === 1 ? '' : 's'} para ${loteLabel(alvo)}`);
+  };
+  document.getElementById('btnLoteDelAll').onclick = () => {
+    close();
+    showConfirm(`Excluir ${loteLabel(v)} e apagar as ${refs.length} referências dele? Isso não pode ser desfeito.`, async () => {
+      forgetLote(v);
+      if (await deleteRefs(refs)) showToast(`${loteLabel(v)} excluído`);
+    });
+  };
+  modal.style.display = 'flex';
+}
+
+// menu ⋯ de cada aba
+let loteMenuTarget = null;
+function openLoteMenu(tab, anchor){
+  const menu = document.getElementById('loteMenu');
+  loteMenuTarget = tab.dataset.lote;
+  const lotes = lotesOf(window.__lastResults || []).filter(Boolean);
+  const k = lotes.indexOf(loteMenuTarget);
+  menu.querySelector('[data-a="left"]').disabled = k <= 0;
+  menu.querySelector('[data-a="right"]').disabled = k < 0 || k >= lotes.length - 1;
+  const rc = anchor.getBoundingClientRect();
+  menu.style.left = `${Math.min(rc.left, window.innerWidth - 230)}px`;
+  menu.style.top = `${rc.bottom + 6}px`;
+  menu.classList.add('open');
+}
+function closeLoteMenu(){ document.getElementById('loteMenu').classList.remove('open'); }
+document.getElementById('loteMenu').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  e.stopPropagation(); closeLoteMenu();
+  const v = loteMenuTarget;
+  const tab = [...document.querySelectorAll('.lote-tab')].find(t => t.dataset.lote === v);
+  if (b.dataset.a === 'rename' && tab) startRenameTab(tab);
+  if (b.dataset.a === 'left') moveLote(v, -1);
+  if (b.dataset.a === 'right') moveLote(v, 1);
+  if (b.dataset.a === 'delete') deleteLote(v);
+});
+document.addEventListener('click', closeLoteMenu);
+window.addEventListener('scroll', closeLoteMenu, {passive:true});
+
+// repetidas no mesmo PDF: o usuário escolhe quais manter
+function askDupes(fileName, grupos){
+  return new Promise(resolve => {
+    const modal = document.getElementById('dupModal');
+    document.getElementById('dupModalFile').textContent = fileName;
+    const all = [];
+    document.getElementById('dupGroups').innerHTML = grupos.map(([codigo, list]) => `
+      <div class="dup-group">
+        <div class="dup-group-head"><b>Ref. ${escapeHtml(String(codigo))}</b>${list[0] && getVariante(list[0]) ? ` <span>| ${escapeHtml(getVariante(list[0]))}</span>` : ''}<em>aparece ${list.length} vezes</em></div>
+        ${list.map(r => { all.push(r); const n = all.length - 1; return `
+          <label class="dup-opt"><input type="checkbox" data-n="${n}" checked>
+            <span class="grade-txt">${escapeHtml(r.grade || '')}</span>
+            <span class="gen-chip ${(r.genero||'').toLowerCase() === 'menino' ? 'masc' : 'fem'}">${generoLabel(r.genero)}</span>
+            <span class="dup-pg">página ${r.page}</span></label>`; }).join('')}
+      </div>`).join('');
+    modal.style.display = 'flex';
+    const finish = keepSel => {
+      modal.style.display = 'none';
+      const remover = new Set();
+      if (keepSel) modal.querySelectorAll('.dup-opt input').forEach(cb => { if (!cb.checked) remover.add(all[+cb.dataset.n]); });
+      resolve(remover);
+    };
+    document.getElementById('btnDupKeepAll').onclick = () => finish(false);
+    document.getElementById('btnDupKeepSel').onclick = () => finish(true);
+  });
+}
+
+// avisos em linguagem simples
+function renderWarning(w){
+  if (w && w.kind === 'dup'){
+    const removidas = w.grupos.reduce((n, g) => n + g.itens.filter(x => x.removida).length, 0);
+    const linhas = w.grupos.map(g => {
+      const mantidas = g.itens.filter(x => !x.removida);
+      const mesmasGrades = new Set(g.itens.map(x => `${x.grade}|${x.genero}`)).size < g.itens.length;
+      return `<li><b>${escapeHtml(String(g.codigo))}</b>
+        <span>${g.itens.map(x => `<span class="${x.removida ? 'risc' : ''}">${escapeHtml(x.grade || '')} ${x.genero === 'Feminino' ? 'fem.' : 'masc.'}</span>`).join(' + ')}</span>
+        ${mesmasGrades ? '<em class="tag-dup">cópia idêntica</em>' : ''}
+        ${mantidas.length < g.itens.length ? `<em>${mantidas.length ? `${mantidas.length} de ${g.itens.length} mantidas` : 'todas removidas'}</em>` : ''}</li>`;
+    }).join('');
+    return `<div class="notice notice-info">
+      <div class="notice-head"><span class="notice-ico">⧉</span><div><b>${w.grupos.length} referência${w.grupos.length === 1 ? '' : 's'} aparece${w.grupos.length === 1 ? '' : 'm'} mais de uma vez</b><span>${escapeHtml(w.file)}${removidas ? ` · ${removidas} removida${removidas === 1 ? '' : 's'} por você` : ' · todas mantidas'}</span></div>
+      <button type="button" class="notice-x" onclick="this.closest('.notice').remove()" aria-label="Fechar">×</button></div>
+      <ul class="notice-list">${linhas}</ul>
+    </div>`;
+  }
+  const t = escapeHtml(String(w)).replace(/^\[([^\]]+)\]\s*/, '<b>$1</b> · ');
+  return `<div class="notice notice-warn"><div class="notice-head"><span class="notice-ico">!</span><div><span class="notice-plain">${t}</span></div>
+    <button type="button" class="notice-x" onclick="this.closest('.notice').remove()" aria-label="Fechar">×</button></div></div>`;
+}
+
+document.getElementById('btnMoveSelectedRefs').addEventListener('click', async () => {
+  if (!selectedRefIndices.size) return;
+  const list = [...selectedRefIndices].map(i => window.__lastResults[i]).filter(Boolean);
+  const alvo = await askLote(`${list.length} referência${list.length === 1 ? '' : 's'} selecionada${list.length === 1 ? '' : 's'}`, viewMode === 'lote' ? activeLote : '',
+    {title:'Mover para qual lote?', hint:'Escolha um lote existente ou digite o nome de um novo.', cancel:true});
+  if (alvo == null) return;
+  await setRefsLote(list, alvo);
+  selectedRefIndices.clear();
+  document.querySelectorAll('.ref-check').forEach(cb => { cb.checked = false; });
+  updateDeleteSelectedRefsLabel();
+  activeLote = alvo; refreshLotesUI();
+  showToast(`${list.length} movida${list.length === 1 ? '' : 's'} para ${loteLabel(alvo)}`);
+});
+
+
+
 // ================= Orquestração principal =================
 processBtn.addEventListener('click', async () => {
+  snapshotPrompts();
   refSelectMode = false;
   selectedRefIndices = new Set();
   document.getElementById('btnToggleSelectRefs').style.display = 'inline-flex';
@@ -1639,6 +2667,19 @@ processBtn.addEventListener('click', async () => {
       const buf = await file.arrayBuffer();
       const pdf = await pdfjsLib.getDocument({data: buf}).promise;
       let anyFoundInFile = false;
+      // Lote do arquivo: primeiro tenta o relatório (página 1, "Lote 1 · Gerado em..."),
+      // depois o nome do arquivo (..._LOTE_1.pdf). Cada página ainda pode trazer o
+      // próprio "Lote N" no cabeçalho da ficha, que tem prioridade.
+      let detected = loteFromFileName(file.name);
+      try{
+        const p1 = await pdf.getPage(1);
+        const t1 = (await p1.getTextContent()).items.map(it => it.str).join('');
+        detected = loteFromText(t1) || detected;
+      }catch(e){}
+      statusEl.textContent = `Escolha o lote de ${file.name}...`;
+      const fileLote = await askLote(file.name, detected);
+      statusEl.textContent = `Lendo ${file.name}...`;
+      const fileRefs = [];
       for (let p = 1; p <= pdf.numPages; p++){
         const page = await pdf.getPage(p);
         const content = await page.getTextContent();
@@ -1647,13 +2688,27 @@ processBtn.addEventListener('click', async () => {
         if (!ref) continue; // página de continuação (fotos extras) ou sem ficha
         anyFoundInFile = true;
         normalizeRef(ref);
+        ref.lote = fileLote; // a escolha no modal vale pro PDF inteiro
         const result = buildPrompt(ref);
         result.source = file.name;
         result.page = p; // página onde esta ocorrência específica começa — usado pra achar as fotos certas mesmo quando o mesmo código de referência se repete no PDF
         result.raw = ref;
+        result.lote = ref.lote;
         result.hasPhotos = PHOTO_FIELD_ORDER.some(([qtyKey]) => (ref[qtyKey] || 0) > 0);
         autoFillPose(result);
         newResults.push(result);
+        fileRefs.push(result);
+      }
+      // aviso: mesmo código mais de uma vez dentro deste PDF
+      const porCodigo = {};
+      fileRefs.forEach(r => (porCodigo[r.codigo] = porCodigo[r.codigo] || []).push(r));
+      const grupos = Object.entries(porCodigo).filter(([, l]) => l.length > 1);
+      if (grupos.length){
+        statusEl.textContent = 'Aguardando decisão sobre referências repetidas no PDF...';
+        const remover = await askDupes(file.name, grupos);
+        if (remover.size) newResults = newResults.filter(r => !remover.has(r));
+        allWarnings.push({kind:'dup', file:file.name, grupos: grupos.map(([c, l]) => ({codigo:c, itens:l.map(r => ({grade:r.grade, genero:generoLabel(r.genero), removida:remover.has(r)}))}))});
+        statusEl.textContent = `Lendo ${file.name}...`;
       }
       if (!anyFoundInFile) allWarnings.push(`[${file.name}] Nenhum bloco JSON encontrado — formato não suportado ou ficha sem JSON embutido.`);
     }catch(err){
@@ -1661,8 +2716,11 @@ processBtn.addEventListener('click', async () => {
     }
   }
 
-  const existingCodes = new Set(existingResults.map(r => r.codigo));
-  const conflictCodes = [...new Set(newResults.filter(r => existingCodes.has(r.codigo)).map(r => r.codigo))];
+  // Uma referência é "a mesma" quando bate código + grade + gênero: o mesmo
+  // código aparece legitimamente em grades diferentes (ex: 10556 Infantil e Juvenil).
+  const existingKeys = new Set(existingResults.map(refKey));
+  const conflictKeys = [...new Set(newResults.filter(r => existingKeys.has(refKey(r))).map(refKey))];
+  const conflictCodes = conflictKeys.map(k => { const [c,g,ge] = k.split('|'); return `${c} (${g} · ${ge})`; });
 
   let resolution = 'keep';
   if (conflictCodes.length){
@@ -1672,11 +2730,11 @@ processBtn.addEventListener('click', async () => {
 
   let mergedResults;
   if (resolution === 'replace'){
-    const toRemove = existingResults.filter(r => conflictCodes.includes(r.codigo));
+    const toRemove = existingResults.filter(r => conflictKeys.includes(refKey(r)));
     // Preserva o check "Lookbook Gerado" das referências antigas: se a referência
     // que está sendo substituída já estava marcada como concluída, a nova versão
     // (recém-parseada da ficha) herda essa marcação em vez de nascer desmarcada.
-    const geradoPorCodigo = new Map(toRemove.filter(isGerado).map(r => [r.codigo, true]));
+    const geradoPorCodigo = new Map(toRemove.filter(isGerado).map(r => [refKey(r), true]));
     for (const r of toRemove){
       if (r.dbId){
         const { error } = await sb.from('client_refs').delete().eq('id', r.dbId);
@@ -1684,17 +2742,17 @@ processBtn.addEventListener('click', async () => {
       }
     }
     newResults.forEach(r => {
-      if (geradoPorCodigo.has(r.codigo)){
+      if (geradoPorCodigo.has(refKey(r))){
         if (!r.raw) r.raw = {};
         r.raw.gerado = true;
       }
     });
-    mergedResults = existingResults.filter(r => !conflictCodes.includes(r.codigo)).concat(newResults);
+    mergedResults = existingResults.filter(r => !conflictKeys.includes(refKey(r))).concat(newResults);
   } else if (resolution === 'ignore'){
     // Descarta a versão nova das referências que já existem — as antigas ficam
     // 100% intocadas (inclusive o check de Lookbook Gerado). Só entram as
     // referências genuinamente novas deste upload.
-    mergedResults = existingResults.concat(newResults.filter(r => !conflictCodes.includes(r.codigo)));
+    mergedResults = existingResults.concat(newResults.filter(r => !conflictKeys.includes(refKey(r))));
   } else {
     mergedResults = existingResults.concat(newResults);
   }
@@ -1708,6 +2766,7 @@ processBtn.addEventListener('click', async () => {
 
   window.__lastResults = mergedResults;
   poseStates = mergedResults.map(r => makePoseState(r));
+  if (newResults.length && viewMode === 'lote') { activeLote = getLote(newResults[0]); saveViewPrefs(); }
   renderResults(mergedResults, allWarnings);
 
   if (window.__currentClient){
@@ -1737,58 +2796,37 @@ processBtn.addEventListener('click', async () => {
   if (mergedResults.some(r => r.hasPhotos)) document.getElementById('downloadZipBtn').style.display = 'inline-block';
 });
 
-// Calcula a ORDEM DE EXIBIÇÃO dos cards sem reordenar o array real — cada
-// item retornado é o índice original em `results` (== window.__lastResults),
-// então todo o resto do código (poseStates[i], toggleGerado(i), etc.) continua
-// funcionando normalmente, só a posição visual na tela muda.
-function getDisplayOrder(results){
-  const idx = results.map((_, i) => i);
-  if (sortMode === 'numeric'){
-    idx.sort((a, b) => {
-      const ca = String(results[a].codigo || ''), cb = String(results[b].codigo || '');
-      const na = parseInt(ca.replace(/\D/g, ''), 10), nb = parseInt(cb.replace(/\D/g, ''), 10);
-      if (!isNaN(na) && !isNaN(nb) && na !== nb) return na - nb;
-      return ca.localeCompare(cb, 'pt-BR', {numeric:true, sensitivity:'base'});
-    });
-  } else if (sortMode === 'gerado_pendente' || sortMode === 'gerado_feito'){
-    const pendentePrimeiro = sortMode === 'gerado_pendente';
-    idx.sort((a, b) => {
-      const ga = isGerado(results[a]) ? 1 : 0;
-      const gb = isGerado(results[b]) ? 1 : 0;
-      return pendentePrimeiro ? (ga - gb) : (gb - ga);
-    });
-  }
-  // 'added' — mantém a ordem natural do array (ordem de adição / created_at)
-  return idx;
-}
-
 function renderResults(results, warnings){
   const warnBox = document.getElementById('warningsBox');
-  warnBox.innerHTML = warnings.length
-    ? `<div class="warnings"><strong>Avisos:</strong>${warnings.map(w=>`<div>! ${w}</div>`).join('')}</div>`
-    : '';
+  warnBox.innerHTML = warnings.map(renderWarning).join('');
 
-  document.getElementById('resultsToolbar').style.display = results.length ? 'flex' : 'none';
+  document.getElementById('resultsToolbar').style.display = (results.length || loteStore.extra.length) ? 'flex' : 'none';
 
-  const order = getDisplayOrder(results);
+  // Todos os cards são renderizados (o export DOCX e o autosave leem cada
+  // prompt-box pelo índice). Filtro, aba e ordem só escondem/reordenam os
+  // nós depois, em applyView(), sem recriar nada.
   const resultsEl = document.getElementById('results');
-  resultsEl.innerHTML = order.map(i => { const r = results[i]; return `
-    <div class="card${isGerado(r) ? ' gerado' : ''}" data-idx="${i}">
+  resultsEl.innerHTML = results.map((r, i) => { return `
+    <div class="card${isGerado(r) ? ' gerado' : ''}${needsDestaque(r) ? ' has-destaque' : ''}" data-idx="${i}">
       <div class="card-head">
         <input type="checkbox" class="ref-check" data-idx="${i}" style="display:${refSelectMode ? 'inline-block' : 'none'};" ${selectedRefIndices.has(i) ? 'checked' : ''}>
-        <span class="code">Ref. ${r.codigo}${getVariante(r) ? ` <span class="variante">| ${escapeHtml(getVariante(r))}</span>` : ''}</span>
-        <span class="meta">${r.grade} · ${r.genero} · ${r.source}</span>
+        <div class="card-title">
+          <span class="code">Ref. ${escapeHtml(String(r.codigo))}${getVariante(r) ? ` <span class="variante">| ${escapeHtml(getVariante(r))}</span>` : ''}</span>
+          <span class="meta">${loteChip(getLote(r))}<span class="grade-txt">${escapeHtml(r.grade || '')}</span><span class="gen-chip ${(r.genero||'').toLowerCase() === 'menino' ? 'masc' : 'fem'}">${generoLabel(r.genero)}</span><span class="meta-src">· ${escapeHtml(r.source || '')}</span></span>
+        </div>
         <label class="gerado-toggle${isGerado(r) ? ' checked' : ''}" id="gerado-toggle-${i}" title="Marcar esta referência como já finalizada no lookbook">
           <input type="checkbox" id="gerado-check-${i}" ${isGerado(r) ? 'checked' : ''} onchange="toggleGerado(${i})">
-          ✅ Lookbook Gerado
+          <span>Lookbook gerado</span>
         </label>
       </div>
-      ${(r.hasPhotos || (r.raw && r.raw.obs && r.raw.obs.trim()) || needsFotoConceito(r) || needsFotoCostas(r)) ? `<div>
-        ${r.hasPhotos ? `<span class="photo-badge">📷 Contém imagem de referência</span>` : ''}
-        ${needsFotoConceito(r) ? `<span class="conceito-badge" title="Precisa tirar foto conceito no dia do lookbook">🎨 Foto conceito</span>` : ''}
-        ${needsFotoCostas(r) ? `<span class="costas-badge" title="Precisa tirar foto de costas no dia do lookbook">🔄 Foto de costas</span>` : ''}
-        ${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<button class="obs-badge" onclick="toggleObs(${i})">📝 Observações</button>` : ''}
+      ${((r.raw && r.raw.obs && r.raw.obs.trim()) || needsFotoConceito(r) || needsFotoCostas(r) || needsDestaque(r)) ? `<div class="flags">
+        ${needsDestaque(r) ? `<span class="flag flag-destaque" title="A peça tem um detalhe que precisa aparecer bem na foto">★ Destaque na peça</span>` : ''}
+        ${needsFotoConceito(r) ? `<span class="flag flag-conceito" title="Precisa tirar foto conceito no dia do lookbook">◐ Foto conceito</span>` : ''}
+        ${needsFotoCostas(r) ? `<span class="flag flag-costas" title="Precisa tirar foto de costas no dia do lookbook">↺ Foto de costas</span>` : ''}
+        ${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<button class="flag flag-obs" onclick="toggleObs(${i})">✎ Observações</button>` : ''}
       </div>` : ''}
+      <div class="dup-notes" id="dup-notes-${i}"></div>
+      ${needsDestaque(r) ? `<div class="destaque-callout"><span class="destaque-ico">★</span><div><span class="destaque-label">Destaque maior na peça</span><span class="destaque-txt">${escapeHtml(destaqueTexto(r) || 'Marcado na ficha, sem descrição. Conferir a peça de referência.')}</span></div></div>` : ''}
       ${(r.raw && r.raw.obs && r.raw.obs.trim()) ? `<div class="obs-panel" id="obs-panel-${i}" style="display:none;">${escapeHtml(r.raw.obs)}</div>` : ''}
       <div class="prompt-box" id="prompt-${i}" contenteditable="true">${r.savedHtml != null ? r.savedHtml : segmentsToHtml(r.segments)}</div>
       ${r.notes.length ? `<div class="notes">${r.notes.map(n=>`<div>! ${n}</div>`).join('')}</div>` : ''}
@@ -1835,8 +2873,8 @@ function renderResults(results, warnings){
     </div>
   `; }).join('');
 
-  order.forEach(i => { if (isBebeGrade(results[i])) renderPosturaPills(i); });
-  order.forEach(i => { updatePoseNav(i); });
+  results.forEach((r, i) => { if (isBebeGrade(r)) renderPosturaPills(i); });
+  results.forEach((r, i) => { updatePoseNav(i); });
 
   resultsEl.querySelectorAll('.ref-check').forEach(cb => {
     cb.addEventListener('click', e => e.stopPropagation());
@@ -1847,7 +2885,10 @@ function renderResults(results, warnings){
     });
   });
 
-  updateGeradoCounter();
+  ensureValidLote();
+  renderLoteTabs();
+  renderFilterMenus();
+  applyView({animate:true});
 }
 
 // Pills de postura base do bebê. Trocar a pill reescreve a frase inicial do
@@ -2099,7 +3140,9 @@ function toggleGerado(i){
   if (card) card.classList.toggle('gerado', r.raw.gerado);
   if (toggle) toggle.classList.toggle('checked', r.raw.gerado);
   if (checkbox) checkbox.checked = r.raw.gerado;
+  if (r.raw.gerado && card){ card.classList.remove('pop'); void card.offsetWidth; card.classList.add('pop'); }
   updateGeradoCounter();
+  renderLoteTabs();
 
   if (r.dbId){
     sb.from('client_refs').update({ raw: r.raw, updated_at: new Date().toISOString() }).eq('id', r.dbId)
@@ -2113,10 +3156,13 @@ function updateGeradoCounter(){
   if (!wrap) return;
   const results = window.__lastResults || [];
   if (!results.length){ wrap.style.display = 'none'; return; }
-  const total = results.length;
-  const feitos = results.filter(isGerado).length;
+  // escopo: o lote aberto (modo por lote) ou tudo (modo juntos)
+  const scope = results.filter(r => viewMode === 'todos' || getLote(r) === activeLote);
+  const total = scope.length;
+  const feitos = scope.filter(isGerado).length;
   wrap.style.display = 'flex';
-  document.getElementById('geradoCounterText').textContent = `✅ ${feitos} de ${total} lookbook${total === 1 ? '' : 's'} gerado${total === 1 ? '' : 's'}`;
+  wrap.classList.toggle('done', total > 0 && feitos === total);
+  document.getElementById('geradoCounterText').textContent = `${feitos} de ${total} gerado${total === 1 ? '' : 's'}`;
   document.getElementById('geradoCounterFill').style.width = `${total ? Math.round((feitos/total)*100) : 0}%`;
 }
 
