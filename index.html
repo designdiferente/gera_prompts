@@ -503,7 +503,7 @@
   .meta-src{ opacity:.75; }
   .lote-chip{ display:inline-flex; align-items:center; font-size:11px; font-weight:700; padding:2px 8px; border-radius:999px;
     background:var(--bg); border:1px solid var(--line); color:var(--muted); white-space:nowrap; }
-  .results:not(.mode-todos) .card .lote-chip{ display:none; }
+  .results:not(.mode-todos) .card .meta .lote-chip{ display:none; }
   .gerado-toggle{ padding:7px 13px 7px 10px; }
   .card.gerado::before{ animation: badgeIn .4s var(--ease); }
   @keyframes badgeIn{ from{ opacity:0; transform:translateY(4px) scale(.9); } }
@@ -692,6 +692,29 @@
   .lote-tab{ border-radius:13px 13px 0 0; }
   .lote-tab.drop-before{ box-shadow: inset 3px 0 0 var(--lc); }
   .lote-tab.drop-after{ box-shadow: inset -3px 0 0 var(--lc); }
+
+  /* modais grandes: cabeçalho e botões sempre visíveis, só a lista rola */
+  .wide-modal{ display:flex; flex-direction:column; max-height:min(86vh, 640px); overflow:hidden; }
+  .wide-modal > .dup-groups, .cmodal-list[open] .cmodal-chips{ overflow:auto; min-height:0; }
+  .wide-modal > .dup-groups{ flex:1; padding-right:4px; }
+  .wide-modal .modal-actions{ flex:none; }
+  .cmodal-head .wide-modal-text{ margin-bottom:10px !important; }
+  .cmodal-list{ border:1px solid var(--line); border-radius:12px; background:var(--bg); margin-bottom:14px; flex:none; display:flex; flex-direction:column; min-height:0; }
+  .cmodal-list[open]{ flex:1 1 auto; }
+  .cmodal-list summary{ cursor:pointer; padding:9px 12px; font-size:12.5px; font-weight:650; color:var(--accent); list-style:none; }
+  .cmodal-list summary::before{ content:"▸ "; display:inline-block; transition:transform .2s var(--ease); }
+  .cmodal-list[open] summary::before{ transform:rotate(90deg); }
+  .cmodal-chips{ display:flex; flex-wrap:wrap; gap:5px; padding:0 10px 10px; max-height:220px; }
+  .cchip{ display:inline-flex; align-items:center; gap:5px; font-size:12px; padding:4px 8px; border-radius:8px; background:var(--card); border:1px solid var(--line); color:var(--muted); }
+  .cchip b{ color:var(--ink); font-family:'Manrope',sans-serif; }
+  .cchip .gen-chip{ padding:1px 5px; font-size:10px; }
+  .cmodal-opts{ display:flex; flex-direction:column; gap:8px; flex:none; }
+  .copt{ display:flex; flex-direction:column; align-items:flex-start; gap:2px; text-align:left; width:100%; padding:11px 14px; border-radius:12px;
+    background:var(--card); border:1px solid var(--line); color:var(--ink); }
+  .copt b{ font-size:13.5px; }
+  .copt span{ font-size:12px; color:var(--muted); font-weight:500; }
+  .copt:hover{ border-color:var(--accent); background:var(--accent-soft); }
+  #btnConflictIgnore{ border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
 </style>
 </head>
 <body data-theme="light">
@@ -815,13 +838,19 @@
 </div>
 
 <div id="conflictModal" class="modal-overlay" style="display:none;">
-  <div class="modal-card">
-    <p style="font-weight:700; margin-bottom:8px;">Referências já existentes</p>
-    <p id="conflictModalText" style="text-align:left;"></p>
-    <div class="modal-actions">
-      <button class="pill-btn pill-ghost" id="btnConflictKeepBoth">Manter ambas</button>
-      <button class="pill-btn pill-ghost" id="btnConflictIgnore">Ignorar as já existentes</button>
-      <button class="pill-btn pill-danger" id="btnConflictReplace">Substituir</button>
+  <div class="modal-card wide-modal cmodal">
+    <div class="cmodal-head">
+      <p class="lote-modal-title" id="conflictTitle">Referências já existentes</p>
+      <p class="wide-modal-text" id="conflictModalText"></p>
+    </div>
+    <details class="cmodal-list" id="conflictDetails">
+      <summary>Ver quais são</summary>
+      <div class="cmodal-chips" id="conflictChips"></div>
+    </details>
+    <div class="cmodal-opts">
+      <button type="button" class="copt" id="btnConflictIgnore"><b>Manter as que já existem</b><span>Ignora a versão nova. Prompts e checks ficam como estão.</span></button>
+      <button type="button" class="copt" id="btnConflictReplace"><b>Substituir pelas novas</b><span>Usa a versão do PDF novo. O check de gerado é mantido.</span></button>
+      <button type="button" class="copt" id="btnConflictKeepBoth"><b>Manter as duas</b><span>Cria cards duplicados.</span></button>
     </div>
   </div>
 </div>
@@ -1892,8 +1921,14 @@ async function uploadPdfsToStorage(files, clientId){
 function showConflictModal(codes){
   return new Promise(resolve => {
     const modal = document.getElementById('conflictModal');
-    document.getElementById('conflictModalText').textContent =
-      `As referências ${codes.join(', ')} já existem salvas pra esse cliente. "Manter ambas" cria cards duplicados. "Ignorar as já existentes" descarta a versão nova dessas referências e mantém as antigas exatamente como estão (inclusive o check de Lookbook Gerado). "Substituir" apaga a versão antiga e usa a nova — o check de Lookbook Gerado é levado adiante se a referência já estava marcada.`;
+    const n = codes.length;
+    document.getElementById('conflictTitle').textContent = `${n} referência${n === 1 ? '' : 's'} já existe${n === 1 ? '' : 'm'} neste cliente`;
+    document.getElementById('conflictModalText').textContent = 'O que fazer com elas?';
+    document.getElementById('conflictChips').innerHTML = codes.map(k => {
+      const [c, g, ge] = String(k).split('|');
+      return `<span class="cchip"><b>${escapeHtml(c)}</b> ${escapeHtml(g || '')} <span class="gen-chip ${ge === 'menino' ? 'masc' : 'fem'}">${ge === 'menino' ? 'M' : 'F'}</span></span>`;
+    }).join('');
+    document.getElementById('conflictDetails').open = n <= 6;
     modal.style.display = 'flex';
     const keepBtn = document.getElementById('btnConflictKeepBoth');
     const ignoreBtn = document.getElementById('btnConflictIgnore');
@@ -2140,7 +2175,11 @@ function updateDupNotes(){
     const mesmoPdf = outras.filter(o => o.source === r.source && getLote(o) === getLote(r));
     if (mesmoPdf.length) notas.push(`<div class="dup-note dup-pdf"><span>⧉</span>Esta peça também está neste PDF como ${mesmoPdf.map(o => `<b>${escapeHtml(o.grade || '')} · ${generoLabel(o.genero)}</b>`).join(', ')}</div>`);
     const outrosLotes = [...new Set(outras.map(getLote).filter(l => l !== getLote(r)))];
-    if (outrosLotes.length) notas.push(`<div class="dup-note dup-lote"><span>⇄</span>Esta referência também está em ${outrosLotes.map(loteChip).join(' ')} <span class="dup-all">(aparece em ${outrosLotes.length + 1} lotes)</span></div>`);
+    if (outrosLotes.length){
+      const c = outrosLotes.map(loteChip);
+      const frase = c.length === 1 ? c[0] : `${c.slice(0, -1).join(', ')} e ${c[c.length - 1]}`;
+      notas.push(`<div class="dup-note dup-lote"><span>⇄</span>Esta referência também está ${c.length === 1 ? 'no' : 'nos lotes'} ${frase}</div>`);
+    }
     el.innerHTML = notas.join('');
   });
 }
@@ -2754,7 +2793,7 @@ processBtn.addEventListener('click', async () => {
   let resolution = 'keep';
   if (conflictCodes.length){
     statusEl.textContent = 'Aguardando decisão sobre referências repetidas...';
-    resolution = await showConflictModal(conflictCodes);
+    resolution = await showConflictModal(conflictKeys);
   }
 
   let mergedResults;
