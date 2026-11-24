@@ -158,7 +158,7 @@
   [data-theme="dark"]{ --mono-btn-bg:#f2f1ec; --mono-btn-text:#17181a; --mono-danger:#e0857a; --mono-danger-soft:#3a2320; }
 
   .clients-screen{min-height:100vh; padding:40px 20px 80px; background:var(--bg);}
-  .clients-wrap{max-width:680px; margin:0 auto;}
+  .clients-wrap{max-width:1040px; margin:0 auto;}
   .clients-header{display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; gap:10px; flex-wrap:wrap;}
   .header-actions{display:flex; gap:8px;}
 
@@ -715,6 +715,179 @@
   .copt span{ font-size:12px; color:var(--muted); font-weight:500; }
   .copt:hover{ border-color:var(--accent); background:var(--accent-soft); }
   #btnConflictIgnore{ border-color:color-mix(in srgb, var(--accent) 45%, var(--line)); }
+
+  /* ---------- pastas: cliente > coleção ---------- */
+  .fx-bar{display:flex; align-items:center; justify-content:space-between; gap:12px; margin:0 0 14px; min-height:34px;}
+  .fx-crumbs{display:flex; align-items:center; flex-wrap:wrap; gap:2px; font-size:13.5px; min-width:0;}
+  .fx-crumb{
+    font-family:inherit; font-size:13.5px; font-weight:650; color:var(--muted); background:transparent;
+    border:1.5px solid transparent; border-radius:999px; padding:5px 11px; cursor:pointer; transition:.15s;
+    max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
+  .fx-crumb:hover{color:var(--ink); background:var(--card); border-color:var(--line);}
+  .fx-crumb.last{color:var(--ink); font-weight:800; cursor:default;}
+  .fx-crumb.last:hover{background:transparent; border-color:transparent;}
+  .fx-crumb.drop{border-color:var(--accent); background:var(--accent-soft); color:var(--accent);}
+  .fx-sep{color:var(--line); font-size:13px; user-select:none;}
+  .fx-save{font-size:12px; font-weight:650; color:var(--muted); white-space:nowrap; opacity:0; transition:opacity .25s;}
+  .fx-save.on{opacity:1;}
+  .fx-save.err{color:var(--warn);}
+
+  .fx-toolbar{display:flex; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;}
+  .fx-grow{flex:1;}
+  .fx-search{
+    display:flex; align-items:center; gap:7px; border:1.5px solid var(--line); border-radius:999px;
+    padding:0 14px; background:var(--card); transition:.15s; height:40px;
+  }
+  .fx-search:focus-within{border-color:var(--ink);}
+  .fx-search input{border:none; background:transparent; outline:none; font-family:inherit; font-size:13.5px; color:var(--ink); width:150px;}
+  .fx-search span{color:var(--muted); font-size:13px;}
+  .fx-seg{display:inline-flex; border:1.5px solid var(--line); border-radius:999px; padding:3px; gap:2px; height:40px; align-items:center;}
+  .fx-seg button{
+    border:none; background:transparent; color:var(--muted); width:34px; height:30px; border-radius:999px;
+    cursor:pointer; font-size:15px; transition:.15s; display:inline-flex; align-items:center; justify-content:center;
+  }
+  .fx-seg button.on{background:var(--mono-btn-bg); color:var(--mono-btn-text);}
+  .fx-toolbar .pill-btn, .fx-toolbar .sort-select-wrap{height:40px; padding-top:0; padding-bottom:0;}
+
+  .fx-selbar{
+    display:flex; align-items:center; gap:6px; flex-wrap:wrap; margin-bottom:12px; padding:7px 10px 7px 16px;
+    background:var(--card); border:1.5px solid var(--line); border-radius:999px;
+    animation:fxIn .18s ease both;
+  }
+  .fx-selbar[hidden]{display:none;}
+  .fx-selbar b{font-size:13px; margin-right:6px;}
+  .fx-chip{
+    font-family:inherit; font-size:12.5px; font-weight:700; color:var(--ink); background:transparent;
+    border:none; border-radius:999px; padding:7px 12px; cursor:pointer; transition:.15s; white-space:nowrap;
+  }
+  .fx-chip:hover{background:var(--bg);}
+  .fx-chip.danger{color:var(--mono-danger);}
+  .fx-chip.danger:hover{background:var(--mono-danger-soft);}
+  .fx-chip.x{margin-left:auto;}
+
+  .fx-area{min-height:46vh; padding:6px 4px 60px; outline:none; border-radius:18px; transition:background .15s;}
+  .fx-area.drop{background:var(--accent-soft);}
+  .fx-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(172px,1fr)); gap:14px;}
+  .fx-item{
+    --fc:#8b94a7;
+    position:relative; display:flex; flex-direction:column; align-items:center; text-align:center;
+    padding:18px 12px 14px; border-radius:20px; border:1.5px solid transparent; cursor:pointer;
+    user-select:none; -webkit-user-select:none; transition:background .15s, border-color .15s, transform .18s, box-shadow .18s;
+    animation:fxIn .32s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--i,0) * 18ms);
+  }
+  .fx-item:hover{background:var(--card); border-color:var(--line); transform:translateY(-2px);}
+  .fx-item.sel{background:color-mix(in srgb, var(--fc) 13%, var(--card)); border-color:color-mix(in srgb, var(--fc) 70%, transparent); box-shadow:0 8px 24px rgba(0,0,0,.07);}
+  .fx-item.cut{opacity:.42;}
+  .fx-item.dragging{opacity:.4;}
+  .fx-item.drop-into{background:var(--accent-soft); border-color:var(--accent); border-style:dashed; transform:scale(1.03);}
+  .fx-item.drop-before::before, .fx-item.drop-after::after{
+    content:""; position:absolute; top:10px; bottom:10px; width:4px; border-radius:4px; background:var(--accent);
+  }
+  .fx-item.drop-before::before{left:-9px;}
+  .fx-item.drop-after::after{right:-9px;}
+  .fx-ico{width:92px; height:78px; margin-bottom:8px; transition:transform .2s;}
+  .fx-item:hover .fx-ico{transform:scale(1.05) rotate(-1deg);}
+  .fx-ico svg{width:100%; height:100%; display:block; filter:drop-shadow(0 6px 8px color-mix(in srgb, var(--fc) 35%, transparent));}
+  .fx-back{fill:color-mix(in srgb, var(--fc) 72%, #000);}
+  .fx-front{fill:var(--fc);}
+  .fx-shine{fill:#fff; opacity:.16;}
+  .fx-paper{fill:#fff; opacity:.95;}
+  .fx-line{stroke:color-mix(in srgb, var(--fc) 55%, #fff); stroke-width:2.2; stroke-linecap:round;}
+  .fx-name{
+    font-size:14px; font-weight:750; line-height:1.25; color:var(--ink); max-width:100%;
+    overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word;
+  }
+  .fx-meta{font-size:11.5px; color:var(--muted); margin-top:3px; font-weight:600; min-height:15px;}
+  .fx-kind{
+    position:absolute; top:10px; left:10px; font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+    color:color-mix(in srgb, var(--fc) 80%, var(--ink)); background:color-mix(in srgb, var(--fc) 14%, transparent);
+    padding:3px 8px; border-radius:999px;
+  }
+  .fx-prog{width:78%; height:4px; border-radius:4px; background:var(--line); margin-top:8px; overflow:hidden;}
+  .fx-prog i{display:block; height:100%; width:0; background:var(--fc); border-radius:4px; transition:width .5s ease;}
+  .fx-more{
+    position:absolute; top:6px; right:6px; width:30px; height:30px; border-radius:50%; border:none; background:transparent;
+    color:var(--muted); font-size:18px; line-height:1; cursor:pointer; opacity:0; transition:.15s; font-weight:800;
+  }
+  .fx-item:hover .fx-more, .fx-item.sel .fx-more, .fx-item:focus-within .fx-more{opacity:1;}
+  .fx-more:hover{background:var(--bg); color:var(--ink);}
+  @media (pointer:coarse){ .fx-more{opacity:1;} }
+  .fx-rename{
+    font-family:inherit; font-size:14px; font-weight:750; text-align:center; width:100%;
+    border:1.5px solid var(--ink); border-radius:10px; padding:5px 6px; background:var(--card); color:var(--ink); outline:none;
+  }
+  .fx-path{font-size:11px; color:var(--muted); margin-top:2px; font-weight:600;}
+
+  /* modo lista */
+  .fx-grid.list{grid-template-columns:1fr; gap:4px;}
+  .fx-grid.list .fx-item{flex-direction:row; text-align:left; padding:8px 14px 8px 10px; gap:14px; border-radius:14px; align-items:center;}
+  .fx-grid.list .fx-ico{width:46px; height:40px; margin:0; flex:none;}
+  .fx-grid.list .fx-ico svg{filter:none;}
+  .fx-grid.list .fx-name{-webkit-line-clamp:1; flex:1; font-size:14px;}
+  .fx-grid.list .fx-meta{margin:0; min-width:150px; text-align:right;}
+  .fx-grid.list .fx-kind{position:static; flex:none; width:76px; text-align:center;}
+  .fx-grid.list .fx-prog{width:90px; margin:0; flex:none;}
+  .fx-grid.list .fx-more{position:static; opacity:.6; flex:none;}
+  .fx-grid.list .fx-item.drop-before::before, .fx-grid.list .fx-item.drop-after::after{left:10px; right:10px; width:auto; height:4px; top:auto; bottom:auto;}
+  .fx-grid.list .fx-item.drop-before::before{top:-3px;}
+  .fx-grid.list .fx-item.drop-after::after{bottom:-3px;}
+
+  .fx-empty{text-align:center; padding:70px 20px; color:var(--muted);}
+  .fx-empty .fx-ico{margin:0 auto 12px; opacity:.55;}
+  .fx-empty h3{margin:0 0 6px; font-size:16px; color:var(--ink);}
+  .fx-empty p{margin:0 0 18px; font-size:13.5px;}
+
+  /* menu de contexto / cores */
+  .fx-menu, .fx-pop{
+    position:fixed; z-index:80; background:var(--card); border:1.5px solid var(--line); border-radius:16px;
+    box-shadow:0 22px 60px rgba(0,0,0,.22); padding:6px; min-width:218px; animation:fxPop .14s ease both;
+  }
+  .fx-menu[hidden], .fx-pop[hidden]{display:none;}
+  .fx-mi{
+    display:flex; align-items:center; gap:10px; width:100%; border:none; background:transparent; color:var(--ink);
+    font-family:inherit; font-size:13.5px; font-weight:600; padding:9px 12px; border-radius:10px; cursor:pointer; text-align:left;
+  }
+  .fx-mi:hover:not(:disabled){background:var(--bg);}
+  .fx-mi:disabled{opacity:.38; cursor:not-allowed;}
+  .fx-mi.danger{color:var(--mono-danger);}
+  .fx-mi.danger:hover:not(:disabled){background:var(--mono-danger-soft);}
+  .fx-mi .ic{width:18px; text-align:center; flex:none;}
+  .fx-mi .kb{margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:600;}
+  .fx-msep{height:1px; background:var(--line); margin:5px 6px;}
+  .fx-pop{padding:14px; width:262px;}
+  .fx-pop h4{margin:0 0 10px; font-size:12px; letter-spacing:.05em; text-transform:uppercase; color:var(--muted);}
+  .fx-sw{display:grid; grid-template-columns:repeat(6,1fr); gap:9px; margin-bottom:12px;}
+  .fx-sw button{
+    width:100%; aspect-ratio:1; border-radius:50%; border:2.5px solid transparent; cursor:pointer; padding:0;
+    transition:transform .12s; box-shadow:inset 0 0 0 1px rgba(0,0,0,.12);
+  }
+  .fx-sw button:hover{transform:scale(1.14);}
+  .fx-sw button.on{border-color:var(--card); box-shadow:0 0 0 2.5px var(--ink);}
+  .fx-pop label.fx-chk{display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; margin:2px 0 10px; cursor:pointer;}
+  .fx-pop .fx-custom{display:flex; align-items:center; gap:10px; font-size:12.5px; font-weight:650; margin-bottom:10px;}
+  .fx-pop input[type=color]{width:34px; height:28px; border:none; background:none; padding:0; cursor:pointer;}
+  .fx-pop .fx-reset{font-family:inherit; font-size:12.5px; font-weight:700; background:none; border:none; color:var(--muted); cursor:pointer; padding:0; text-decoration:underline;}
+
+  /* mover para */
+  .fx-move-card{max-width:420px; text-align:left; padding:22px 20px 18px;}
+  .fx-move-card h3{margin:0 0 4px; font-size:16px;}
+  .fx-move-card .fx-sub{font-size:12.5px; color:var(--muted); margin:0 0 12px;}
+  .fx-tree{max-height:46vh; overflow:auto; border:1.5px solid var(--line); border-radius:14px; padding:6px; margin-bottom:16px;}
+  .fx-tn{
+    display:flex; align-items:center; gap:9px; width:100%; border:none; background:transparent; color:var(--ink);
+    font-family:inherit; font-size:13.5px; font-weight:600; padding:8px 10px; border-radius:10px; cursor:pointer; text-align:left;
+  }
+  .fx-tn:hover:not(:disabled){background:var(--bg);}
+  .fx-tn.on{background:var(--accent-soft); color:var(--accent);}
+  .fx-tn:disabled{opacity:.35; cursor:not-allowed;}
+  .fx-tn .dot{width:12px; height:12px; border-radius:4px; flex:none;}
+  .fx-move-card .modal-actions{justify-content:flex-end;}
+
+  @keyframes fxIn{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
+  @keyframes fxPop{from{opacity:0; transform:scale(.96);} to{opacity:1; transform:none;}}
+  @media (prefers-reduced-motion:reduce){ .fx-item, .fx-menu, .fx-pop, .fx-selbar{animation:none;} .fx-item, .fx-ico{transition:none;} }
+  @media (max-width:560px){ .fx-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px;} .fx-search input{width:100px;} .fx-grid.list .fx-meta, .fx-grid.list .fx-kind{display:none;} }
 </style>
 </head>
 <body data-theme="light">
@@ -751,7 +924,7 @@
     <div class="clients-header">
       <div class="brand">
         <img id="logoImgClients" src="" alt="AI Creative Studio" style="height:30px;">
-        <div class="brand-text"><h1>Clientes</h1><p>Selecione um já produzido ou adicione um novo</p></div>
+        <div class="brand-text"><h1>Pastas</h1><p>Cada cliente é uma pasta; dentro ficam as coleções</p></div>
       </div>
       <div class="header-actions">
         <button class="pill-btn pill-ghost" id="themeToggleClients">🌙 Escuro</button>
@@ -759,21 +932,37 @@
       </div>
     </div>
 
-    <div class="add-client-form">
-      <input type="text" id="newClientName" placeholder="Nome do novo cliente">
-      <button class="pill-btn pill-solid" id="btnAddClient">Adicionar</button>
+    <div class="fx-bar">
+      <nav class="fx-crumbs" id="fxCrumbs" aria-label="Caminho"></nav>
+      <span class="fx-save" id="fxSave" aria-live="polite"></span>
     </div>
 
-    <div class="clients-toolbar">
-      <button class="pill-btn pill-ghost" id="btnToggleSelect">Selecionar</button>
-      <div class="selection-actions" id="selectionActions" style="display:none;">
-        <button class="pill-btn pill-ghost" id="btnSelectAll">Selecionar todas</button>
-        <button class="pill-btn pill-danger" id="btnDeleteSelected" disabled>Apagar selecionadas (0)</button>
-        <button class="pill-btn pill-ghost" id="btnCancelSelect">Cancelar</button>
+    <div class="fx-toolbar">
+      <button class="pill-btn pill-solid" id="fxNewFolder">＋ Nova pasta</button>
+      <button class="pill-btn pill-ghost" id="fxNewColl">＋ Nova coleção</button>
+      <button class="pill-btn pill-ghost" id="fxPaste" disabled>Colar</button>
+      <div class="fx-grow"></div>
+      <div class="fx-search"><span>🔍</span><input type="text" id="fxSearch" placeholder="Buscar..." autocomplete="off"></div>
+      <label class="sort-select-wrap" title="Ordenar">
+        <span class="sort-select-icon">⇅</span>
+        <select id="fxSort">
+          <option value="manual">Minha ordem</option>
+          <option value="nome">Nome (A–Z)</option>
+          <option value="recente">Mais recentes</option>
+        </select>
+      </label>
+      <div class="fx-seg" id="fxView">
+        <button data-v="grid" title="Ícones" aria-label="Ver em ícones">▦</button>
+        <button data-v="list" title="Lista" aria-label="Ver em lista">☰</button>
       </div>
     </div>
 
-    <div id="clientsList"></div>
+    <div class="fx-selbar" id="fxSelBar" hidden></div>
+
+    <div class="fx-area" id="fxArea" tabindex="-1">
+      <div class="fx-grid" id="fxGrid"></div>
+      <div class="fx-empty" id="fxEmpty" style="display:none;"></div>
+    </div>
   </div>
 </div>
 
@@ -866,7 +1055,7 @@
       </div>
     </div>
     <div style="display:flex; gap:10px; align-items:center;">
-      <button class="btn-ghost" id="btnBackToClients">← Clientes</button>
+      <button class="btn-ghost" id="btnBackToClients">← Pastas</button>
       <button class="theme-toggle" id="themeToggle">🌙 Escuro</button>
     </div>
   </header>
@@ -874,7 +1063,7 @@
   <p class="sub">Suba uma ou mais fichas em PDF. O JSON embutido é extraído automaticamente, cada referência vira um prompt, e você define a pose direto no card.</p>
 
   <div class="setup-card">
-    <label class="field-label" for="clientName">Cliente</label>
+    <label class="field-label" for="clientName">Cliente / Coleção</label>
     <input type="text" id="clientName" readonly>
 
     <label class="dropzone" id="dropzone">
@@ -1023,9 +1212,6 @@ document.getElementById('btnLogout').addEventListener('click', async () => {
 });
 document.getElementById('btnBackToClients').addEventListener('click', showClientsScreen);
 
-let selectMode = false;
-let selectedIds = new Set();
-
 function showConfirm(message, onConfirm){
   const modal = document.getElementById('confirmModal');
   document.getElementById('confirmModalText').textContent = message;
@@ -1037,132 +1223,850 @@ function showConfirm(message, onConfirm){
   noBtn.onclick = cleanup;
 }
 
-async function loadClients(){
-  const listEl = document.getElementById('clientsList');
-  listEl.innerHTML = '<p style="color:var(--muted); font-size:13px;">Carregando...</p>';
-  const { data, error } = await sb.from('clientes').select('*').order('created_at', {ascending:false});
-  if (error){ listEl.innerHTML = `<p style="color:var(--warn); font-size:13px;">Erro ao carregar clientes: ${error.message}</p>`; return; }
-  if (!data || !data.length){ listEl.innerHTML = '<p style="color:var(--muted); font-size:13px;">Nenhum cliente ainda — adicione um acima.</p>'; return; }
+// ================= Pastas (cliente > coleção) =================
+// Cada CLIENTE é uma pasta; dentro ficam subpastas e COLEÇÕES. Cada coleção é uma linha
+// em "clientes" (é nela que ficam os lotes, referências e PDFs), então nada do resto do app muda.
+// A estrutura (nomes, cores, ordem, hierarquia) fica salva no Supabase numa linha reservada.
+const FX_RESERVED = '__pastas__';
+const FX_DEFAULT = '#8b94a7';
+const FX_COLORS = [
+  {v:'#8b94a7', n:'Cinza'}, {v:'#e5484d', n:'Vermelho'}, {v:'#f76b15', n:'Laranja'}, {v:'#e5a800', n:'Amarelo'},
+  {v:'#30a46c', n:'Verde'}, {v:'#12a594', n:'Turquesa'}, {v:'#0091ff', n:'Azul'}, {v:'#6e56cf', n:'Roxo'},
+  {v:'#d6409f', n:'Rosa'}, {v:'#8e6e53', n:'Marrom'}, {v:'#3e63dd', n:'Índigo'}, {v:'#17181a', n:'Preto'}
+];
+const FX_CACHE = 'lookbook_pastas_cache';
+const FX_PREFS = 'lookbook_pastas_prefs';
 
-  listEl.innerHTML = data.map(c => `
-    <div class="client-row ${selectMode ? 'select-mode' : ''}" data-id="${c.id}" data-nome="${c.nome.replace(/"/g,'&quot;')}">
-      <input type="checkbox" class="row-check" ${selectedIds.has(c.id) ? 'checked' : ''}>
-      <span class="name">${c.nome}</span>
-      <div class="row-right">
-        <span class="date">${new Date(c.created_at).toLocaleDateString('pt-BR')}</span>
-        <button class="icon-btn edit-btn" title="Editar nome">✏️</button>
-        <button class="icon-btn delete-btn" title="Apagar">🗑️</button>
-      </div>
-    </div>
-  `).join('');
+const fx = {
+  nodes:{}, rows:[], reservedId:null, refId:null, loaded:false, savedAt:0,
+  cur:null, sel:new Set(), anchor:null, clip:null, counts:{},
+  view:'grid', sort:'manual', q:'', drag:null, busy:false, renaming:null
+};
+const fxEl = id => document.getElementById(id);
+const fxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fxNewId = () => 'n' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const fxIsMac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+const fxMod = e => fxIsMac ? e.metaKey : e.ctrlKey;
+const fxKb = k => (fxIsMac ? '⌘' : 'Ctrl+') + k;
 
-  listEl.querySelectorAll('.client-row').forEach(row => {
-    const id = row.dataset.id;
+try{ const p = JSON.parse(localStorage.getItem(FX_PREFS) || 'null'); if (p){ fx.view = p.view === 'list' ? 'list' : 'grid'; fx.sort = ['manual','nome','recente'].includes(p.sort) ? p.sort : 'manual'; } }catch(e){}
+function fxSavePrefs(){ try{ localStorage.setItem(FX_PREFS, JSON.stringify({view:fx.view, sort:fx.sort})); }catch(e){} }
 
-    row.addEventListener('click', (e) => {
-      if (e.target.closest('.edit-btn') || e.target.closest('.delete-btn') || e.target.closest('.name-input')) return;
-      if (selectMode){
-        if (e.target.classList.contains('row-check')){
-          toggleSelected(id, e.target.checked);
-        } else {
-          const cb = row.querySelector('.row-check');
-          cb.checked = !cb.checked;
-          toggleSelected(id, cb.checked);
-        }
-        return;
+// ---------- árvore ----------
+function fxKids(pid){ pid = pid || null; return Object.values(fx.nodes).filter(n => (n.p || null) === pid); }
+function fxCollator(a, b){ return a.n.localeCompare(b.n, 'pt-BR', {numeric:true, sensitivity:'base'}); }
+function fxSorted(pid){
+  const a = fxKids(pid);
+  if (fx.sort === 'nome') a.sort((x, y) => (x.t === y.t ? 0 : x.t === 'f' ? -1 : 1) || fxCollator(x, y));
+  else if (fx.sort === 'recente') a.sort((x, y) => (x.t === y.t ? 0 : x.t === 'f' ? -1 : 1) || ((y.ts || 0) - (x.ts || 0)));
+  else a.sort((x, y) => ((x.o || 0) - (y.o || 0)) || fxCollator(x, y));
+  return a;
+}
+function fxPath(id){ const out = []; let n = fx.nodes[id], g = 0; while (n && g++ < 60){ out.unshift(n); n = n.p ? fx.nodes[n.p] : null; } return out; }
+function fxPathName(id){ return fxPath(id).map(n => n.n).join(' / '); }
+function fxIsDesc(ancId, id){ let n = fx.nodes[id], g = 0; while (n && g++ < 60){ if (n.p === ancId) return true; n = n.p ? fx.nodes[n.p] : null; } return false; }
+function fxSubtree(id){ const out = []; const walk = i => { const n = fx.nodes[i]; if (!n) return; out.push(n); fxKids(i).forEach(k => walk(k.id)); }; walk(id); return out; }
+function fxNextOrder(pid){ const k = fxKids(pid); return k.length ? Math.max(...k.map(n => n.o || 0)) + 10 : 0; }
+function fxUniqueName(name, pid, ignoreId, copySuffix){
+  name = (name || '').trim() || 'Sem nome';
+  const used = new Set(fxKids(pid).filter(n => n.id !== ignoreId).map(n => n.n.toLowerCase()));
+  if (!used.has(name.toLowerCase())) return name;
+  if (copySuffix){
+    let c = `${name} (cópia)`, i = 2;
+    while (used.has(c.toLowerCase())) c = `${name} (cópia ${i++})`;
+    return c;
+  }
+  let i = 2, c = `${name} ${i}`;
+  while (used.has(c.toLowerCase())) c = `${name} ${++i}`;
+  return c;
+}
+function fxAutoColor(pid){
+  if (pid && fx.nodes[pid] && fx.nodes[pid].col) return fx.nodes[pid].col;
+  const n = fxKids(null).length;
+  return FX_COLORS[1 + (n % (FX_COLORS.length - 2))].v; // roda pelas cores (sem cinza/preto)
+}
+
+// ---------- persistência ----------
+function fxSetSave(text, cls){
+  const el = fxEl('fxSave'); if (!el) return;
+  el.textContent = text || ''; el.className = 'fx-save' + (text ? ' on' : '') + (cls ? ' ' + cls : '');
+  clearTimeout(fx._st);
+  if (text && !cls) fx._st = setTimeout(() => { el.className = 'fx-save'; }, 2200);
+}
+function fxSaveSoon(){ fxSetSave('Salvando…'); clearTimeout(fx._t); fx._t = setTimeout(fxFlush, 450); }
+async function fxFlush(){
+  if (fx._saving){ fx._again = true; return; }
+  fx._saving = true;
+  fx.savedAt = Date.now();
+  const payload = {v:1, saved:fx.savedAt, nodes:fx.nodes};
+  try{ localStorage.setItem(FX_CACHE, JSON.stringify(payload)); }catch(e){}
+  try{
+    if (!fx.reservedId){
+      const { data, error } = await sb.from('clientes').insert({ nome: FX_RESERVED }).select().single();
+      if (error) throw error;
+      fx.reservedId = data.id;
+    }
+    if (fx.refId){
+      const { error } = await sb.from('client_refs').update({ raw: payload, updated_at: new Date().toISOString() }).eq('id', fx.refId);
+      if (error) throw error;
+    } else {
+      const { data, error } = await sb.from('client_refs').insert({
+        cliente_id: fx.reservedId, codigo: FX_RESERVED, grade: '', genero: '', source_pdf: '', prompt_html: '', has_photos: false, raw: payload
+      }).select().single();
+      if (error) throw error;
+      fx.refId = data.id;
+    }
+    fx.cloudErr = false;
+    fxSetSave('Salvo ✓');
+  }catch(err){
+    console.warn('Falha ao salvar pastas na nuvem:', err);
+    fxSetSave('Salvo só neste navegador', 'err');
+    if (!fx.cloudErr) showToast('Não consegui salvar as pastas na nuvem. Elas ficaram salvas só neste navegador.');
+    fx.cloudErr = true;
+  }
+  fx._saving = false;
+  if (fx._again){ fx._again = false; fxFlush(); }
+}
+
+async function fxLoad(){
+  const { data: rows, error } = await sb.from('clientes').select('*').order('created_at', {ascending:true});
+  if (error) return error.message;
+  const res = rows.find(r => r.nome === FX_RESERVED);
+  fx.rows = rows.filter(r => r.nome !== FX_RESERVED);
+  fx.reservedId = res ? res.id : null; fx.refId = null;
+  let cloud = null, local = null;
+  if (res){
+    try{
+      const { data } = await sb.from('client_refs').select('id,raw').eq('cliente_id', res.id).eq('codigo', FX_RESERVED).limit(1);
+      if (data && data[0]){ fx.refId = data[0].id; cloud = data[0].raw; }
+    }catch(e){}
+  }
+  try{ local = JSON.parse(localStorage.getItem(FX_CACHE) || 'null'); }catch(e){}
+  let pick = cloud && cloud.nodes ? cloud : null;
+  let localNewer = false;
+  if (local && local.nodes && (!pick || (local.saved || 0) > (pick.saved || 0))){ pick = local; localNewer = !!cloud || !res; }
+  fx.nodes = pick ? pick.nodes : {};
+  fx.savedAt = pick ? (pick.saved || 0) : 0;
+  const changed = fxReconcile();
+  fx.loaded = true;
+  if (changed || localNewer) fxSaveSoon();
+  return null;
+}
+function fxReconcile(){
+  const ids = new Map(fx.rows.map(r => [r.id, r]));
+  let changed = false;
+  Object.values(fx.nodes).forEach(n => { if (n.t === 'c' && !ids.has(n.cid)){ delete fx.nodes[n.id]; changed = true; } });
+  Object.values(fx.nodes).forEach(n => { if (n.p && !fx.nodes[n.p]){ n.p = null; changed = true; } });
+  const used = new Set(Object.values(fx.nodes).filter(n => n.t === 'c').map(n => n.cid));
+  [...fx.rows].reverse().forEach(r => { // mais novos primeiro, como era antes
+    if (used.has(r.id)) return;
+    const ts = Date.parse(r.created_at) || Date.now();
+    const f = {id:fxNewId(), t:'f', n:fxUniqueName(r.nome, null), p:null, o:fxNextOrder(null), col:fxAutoColor(null), ts};
+    fx.nodes[f.id] = f;
+    const c = {id:fxNewId(), t:'c', n:'Coleção 1', cid:r.id, p:f.id, o:0, col:f.col, ts};
+    fx.nodes[c.id] = c;
+    changed = true;
+  });
+  return changed;
+}
+
+// ---------- contagem de referências por coleção ----------
+async function fxLoadCounts(){
+  try{
+    const counts = {}; let from = 0;
+    for (let page = 0; page < 40; page++){
+      const { data, error } = await sb.from('client_refs').select('cliente_id, gerado:raw->>gerado').order('id', {ascending:true}).range(from, from + 999);
+      if (error || !data) return;
+      data.forEach(r => {
+        if (r.cliente_id === fx.reservedId) return;
+        const c = counts[r.cliente_id] || (counts[r.cliente_id] = {total:0, gerado:0});
+        c.total++; if (r.gerado === 'true') c.gerado++;
+      });
+      if (data.length < 1000) break;
+      from += 1000;
+    }
+    fx.counts = counts;
+    fxPatchCounts();
+  }catch(e){ console.warn('contagem', e); }
+}
+function fxCollMeta(n){
+  const c = fx.counts[n.cid];
+  if (!c) return fx.countsTried ? '0 referências' : '';
+  return `${c.total} referência${c.total === 1 ? '' : 's'}` + (c.total ? ` · ${c.gerado} gerada${c.gerado === 1 ? '' : 's'}` : '');
+}
+function fxPatchCounts(){
+  fx.countsTried = true;
+  if (fx.q.trim()) return;
+  document.querySelectorAll('.fx-item[data-t="c"]').forEach(el => {
+    const n = fx.nodes[el.dataset.id]; if (!n) return;
+    const m = el.querySelector('.fx-meta'); if (m) m.textContent = fxCollMeta(n);
+    const c = fx.counts[n.cid], bar = el.querySelector('.fx-prog i');
+    if (bar) bar.style.width = c && c.total ? Math.round(100 * c.gerado / c.total) + '%' : '0';
+  });
+}
+
+// ---------- ícones ----------
+function fxIcon(n){
+  const paper = n.t === 'c'
+    ? '<rect class="fx-paper" x="18" y="14" width="60" height="42" rx="4"/><path class="fx-line" d="M27 26h42M27 34h42M27 42h26"/>' : '';
+  return `<svg viewBox="0 0 96 80" aria-hidden="true"><path class="fx-back" d="M6 14a6 6 0 0 1 6-6h22a6 6 0 0 1 4.6 2.2L44 17h40a6 6 0 0 1 6 6v6H6z"/>${paper}<rect class="fx-front" x="4" y="24" width="88" height="52" rx="9"/><path class="fx-shine" d="M13 24h70a9 9 0 0 1 9 9v2H4v-2a9 9 0 0 1 9-9z"/></svg>`;
+}
+
+// ---------- render ----------
+function fxVisible(){
+  const q = fx.q.trim().toLowerCase();
+  if (q) return Object.values(fx.nodes).filter(n => n.n.toLowerCase().includes(q)).sort(fxCollator);
+  return fxSorted(fx.cur);
+}
+function fxItemHTML(n, i, searching){
+  const col = n.col || FX_DEFAULT;
+  let meta;
+  if (searching) meta = fxPath(n.id).slice(0, -1).map(p => p.n).join(' / ') || 'Início';
+  else if (n.t === 'c') meta = fxCollMeta(n);
+  else {
+    const k = fxKids(n.id), f = k.filter(x => x.t === 'f').length, c = k.length - f;
+    meta = !k.length ? 'Vazia' : [f ? `${f} pasta${f > 1 ? 's' : ''}` : '', c ? `${c} coleç${c > 1 ? 'ões' : 'ão'}` : ''].filter(Boolean).join(' · ');
+  }
+  let prog = '';
+  if (n.t === 'c'){ const c = fx.counts[n.cid]; prog = `<div class="fx-prog"><i style="width:${c && c.total ? Math.round(100 * c.gerado / c.total) : 0}%"></i></div>`; }
+  return `<div class="fx-item${fx.sel.has(n.id) ? ' sel' : ''}${fx.clip && fx.clip.mode === 'cut' && fx.clip.ids.includes(n.id) ? ' cut' : ''}" data-id="${n.id}" data-t="${n.t}" draggable="${searching ? 'false' : 'true'}" style="--fc:${col};--i:${Math.min(i, 24)}" role="button" aria-label="${fxEsc(n.n)}">
+    <span class="fx-kind">${n.t === 'c' ? 'Coleção' : 'Pasta'}</span>
+    <button class="fx-more" title="Mais opções" aria-label="Mais opções">⋯</button>
+    <div class="fx-ico">${fxIcon(n)}</div>
+    <div class="fx-name">${fxEsc(n.n)}</div>
+    <div class="fx-meta">${fxEsc(meta)}</div>${prog}
+  </div>`;
+}
+function fxRender(){
+  const grid = fxEl('fxGrid'); if (!grid) return;
+  fxRenderCrumbs();
+  const searching = !!fx.q.trim();
+  const list = fxVisible();
+  grid.className = 'fx-grid' + (fx.view === 'list' ? ' list' : '');
+  // some seleção de itens que não existem mais
+  [...fx.sel].forEach(id => { if (!fx.nodes[id]) fx.sel.delete(id); });
+  if (!list.length){
+    grid.innerHTML = '';
+    const emptyIcon = fxIcon({t:'f'});
+    fxEl('fxEmpty').innerHTML = searching
+      ? `<h3>Nada encontrado</h3><p>Nenhuma pasta ou coleção com “${fxEsc(fx.q)}”.</p>`
+      : `<div class="fx-ico" style="--fc:#8b94a7">${emptyIcon}</div><h3>${fx.cur ? 'Esta pasta está vazia' : 'Nenhuma pasta ainda'}</h3><p>${fx.cur ? 'Crie uma subpasta ou uma coleção aqui dentro.' : 'Crie a pasta do primeiro cliente para começar.'}</p>`;
+    fxEl('fxEmpty').style.display = 'block';
+  } else {
+    fxEl('fxEmpty').style.display = 'none';
+    grid.innerHTML = list.map((n, i) => fxItemHTML(n, i, searching)).join('');
+  }
+  fxRenderSelBar();
+  fxEl('fxPaste').disabled = !fx.clip;
+  fxEl('fxPaste').textContent = fx.clip ? `Colar (${fx.clip.ids.length})` : 'Colar';
+  fxEl('fxNewColl').style.display = 'inline-flex';
+  document.querySelectorAll('#fxView button').forEach(b => b.classList.toggle('on', b.dataset.v === fx.view));
+  fxEl('fxSort').value = fx.sort;
+  fxEl('fxSort').disabled = searching;
+  if (fx.countsTried) fxPatchCounts();
+}
+function fxRenderCrumbs(){
+  const path = fx.cur ? fxPath(fx.cur) : [];
+  const parts = [{id:'', n:'Início'}, ...path.map(p => ({id:p.id, n:p.n}))];
+  fxEl('fxCrumbs').innerHTML = parts.map((p, i) => {
+    const last = i === parts.length - 1;
+    return (i ? '<span class="fx-sep">›</span>' : '') + `<button class="fx-crumb${last ? ' last' : ''}" data-id="${p.id}">${i === 0 ? '🏠 ' : ''}${fxEsc(p.n)}</button>`;
+  }).join('');
+}
+function fxRenderSelBar(){
+  const bar = fxEl('fxSelBar'), n = fx.sel.size;
+  bar.hidden = !n;
+  if (!n) return;
+  const single = n === 1;
+  bar.innerHTML = `<b>${n} selecionad${n > 1 ? 'os' : 'o'}</b>
+    ${single ? '<button class="fx-chip" data-a="open">Abrir</button><button class="fx-chip" data-a="rename">Renomear</button>' : ''}
+    <button class="fx-chip" data-a="color">Cor</button>
+    <button class="fx-chip" data-a="copy">Copiar</button>
+    <button class="fx-chip" data-a="cut">Recortar</button>
+    <button class="fx-chip" data-a="move">Mover para…</button>
+    <button class="fx-chip danger" data-a="delete">Excluir</button>
+    <button class="fx-chip x" data-a="clear" title="Limpar seleção">✕</button>`;
+}
+
+// ---------- navegação ----------
+function fxGo(id){ fx.cur = id || null; fx.sel.clear(); fx.anchor = null; fx.q = ''; fxEl('fxSearch').value = ''; fxCloseMenus(); fxRender(); }
+function fxOpen(id){
+  const n = fx.nodes[id]; if (!n) return;
+  if (fx.q.trim()){ fx.q = ''; fxEl('fxSearch').value = ''; }
+  if (n.t === 'f'){ fxGo(n.id); return; }
+  fx.cur = n.p || null;
+  window.__currentNodeId = n.id;
+  showAppScreen({id:n.cid, nome:fxPathName(n.id)});
+}
+
+// ---------- criar / renomear ----------
+async function fxCreate(type, pid){
+  if (fx.busy) return;
+  pid = pid === undefined ? fx.cur : pid;
+  const base = type === 'c' ? 'Nova coleção' : 'Nova pasta';
+  const name = fxUniqueName(base, pid);
+  const node = {id:fxNewId(), t:type, n:name, p:pid || null, o:fxNextOrder(pid), col:fxAutoColor(pid), ts:Date.now()};
+  if (type === 'c'){
+    fx.busy = true;
+    const { data, error } = await sb.from('clientes').insert({ nome: name }).select().single();
+    fx.busy = false;
+    if (error){ showToast('Erro ao criar coleção: ' + error.message); return; }
+    node.cid = data.id; fx.rows.push(data);
+  }
+  fx.nodes[node.id] = node;
+  if (fx.q.trim()){ fx.q = ''; fxEl('fxSearch').value = ''; }
+  if (pid && pid !== fx.cur){ fx.cur = pid; }
+  fx.sel = new Set([node.id]); fx.anchor = node.id;
+  fxSaveSoon(); fxRender();
+  fxRename(node.id, true);
+}
+function fxRename(id, selectAll){
+  const el = document.querySelector(`.fx-item[data-id="${id}"]`), n = fx.nodes[id];
+  if (!el || !n) return;
+  const nameEl = el.querySelector('.fx-name');
+  const input = document.createElement('input');
+  input.className = 'fx-rename'; input.value = n.n; input.maxLength = 80;
+  nameEl.replaceWith(input);
+  el.setAttribute('draggable', 'false');
+  fx.renaming = id;
+  input.focus(); input.select();
+  let done = false;
+  const finish = async (save) => {
+    if (done) return; done = true; fx.renaming = null;
+    const v = input.value.trim();
+    if (save && v && v !== n.n){
+      const nome = fxUniqueName(v, n.p, n.id);
+      n.n = nome;
+      if (n.t === 'c'){ const { error } = await sb.from('clientes').update({ nome }).eq('id', n.cid); if (error) showToast('Erro ao renomear: ' + error.message); }
+      fxSaveSoon();
+    }
+    fxRender();
+  };
+  input.addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'Enter'){ e.preventDefault(); finish(true); } else if (e.key === 'Escape'){ e.preventDefault(); finish(false); } });
+  input.addEventListener('blur', () => finish(true));
+  input.addEventListener('click', e => e.stopPropagation());
+  input.addEventListener('dblclick', e => e.stopPropagation());
+  input.addEventListener('mousedown', e => e.stopPropagation());
+}
+
+// ---------- cores ----------
+function fxSetColor(ids, col, deep){
+  ids.forEach(id => { (deep ? fxSubtree(id) : [fx.nodes[id]]).forEach(n => { if (n){ if (col) n.col = col; else delete n.col; } }); });
+  fxSaveSoon(); fxRender();
+}
+function fxShowColor(ids, anchorRect){
+  fxCloseMenus();
+  const pop = fxEl('fxColor');
+  const first = fx.nodes[ids[0]];
+  const cur = (first && first.col) || '';
+  const hasFolder = ids.some(i => fx.nodes[i] && fx.nodes[i].t === 'f' && fxKids(i).length);
+  pop.innerHTML = `<h4>Cor da pasta</h4>
+    <div class="fx-sw">${FX_COLORS.map(c => `<button data-c="${c.v}" title="${c.n}" class="${cur.toLowerCase() === c.v ? 'on' : ''}" style="background:${c.v}"></button>`).join('')}</div>
+    <div class="fx-custom"><input type="color" id="fxCustomColor" value="${cur || FX_DEFAULT}"> <span>Cor personalizada</span></div>
+    ${hasFolder ? '<label class="fx-chk"><input type="checkbox" id="fxDeep" checked> Aplicar também às subpastas</label>' : ''}
+    <button class="fx-reset" data-c="">Voltar à cor padrão</button>`;
+  pop.hidden = false;
+  fxPlace(pop, anchorRect);
+  const deep = () => { const c = fxEl('fxDeep'); return !c || c.checked; };
+  pop.querySelectorAll('.fx-sw button, .fx-reset').forEach(b => b.addEventListener('click', () => { fxSetColor(ids, b.dataset.c, deep()); fxCloseMenus(); }));
+  fxEl('fxCustomColor').addEventListener('input', e => { fxSetColor(ids, e.target.value, deep()); });
+  fxEl('fxCustomColor').addEventListener('change', () => fxCloseMenus());
+}
+
+// ---------- posicionamento de menus ----------
+function fxPlace(el, rect){
+  el.style.left = '0px'; el.style.top = '0px';
+  const w = el.offsetWidth, h = el.offsetHeight, pad = 8;
+  let x = rect.left, y = rect.bottom + 4;
+  if (x + w > innerWidth - pad) x = Math.max(pad, innerWidth - w - pad);
+  if (y + h > innerHeight - pad) y = Math.max(pad, rect.top - h - 4);
+  if (y < pad) y = pad;
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+}
+function fxCloseMenus(){ const m = fxEl('fxMenu'), c = fxEl('fxColor'); if (m) m.hidden = true; if (c) c.hidden = true; }
+function fxShowMenu(items, rect){
+  fxCloseMenus();
+  const m = fxEl('fxMenu');
+  m.innerHTML = items.map((it, i) => it.sep ? '<div class="fx-msep"></div>' :
+    `<button class="fx-mi${it.danger ? ' danger' : ''}" data-i="${i}" ${it.disabled ? 'disabled' : ''}><span class="ic">${it.ic || ''}</span>${fxEsc(it.l)}${it.k ? `<span class="kb">${it.k}</span>` : ''}</button>`).join('');
+  m.hidden = false;
+  fxPlace(m, rect);
+  m.querySelectorAll('.fx-mi').forEach(b => b.addEventListener('click', () => {
+    const it = items[+b.dataset.i]; const r = b.getBoundingClientRect();
+    fxCloseMenus(); if (it && it.fn) it.fn(rect);
+  }));
+}
+function fxMenuItems(ids){
+  const one = ids.length === 1 ? fx.nodes[ids[0]] : null;
+  const isF = one && one.t === 'f';
+  const items = [];
+  if (!ids.length){
+    items.push({ic:'📁', l:'Nova pasta', fn:() => fxCreate('f')});
+    items.push({ic:'📒', l:'Nova coleção', fn:() => fxCreate('c')});
+    items.push({sep:1});
+    items.push({ic:'📋', l:'Colar aqui', k:fxKb('V'), disabled:!fx.clip, fn:() => fxPaste(fx.cur)});
+    items.push({ic:'☑️', l:'Selecionar tudo', k:fxKb('A'), fn:fxSelectAll});
+    return items;
+  }
+  if (one) items.push({ic:'↗️', l:'Abrir', k:'Enter', fn:() => fxOpen(one.id)});
+  if (one) items.push({ic:'✏️', l:'Renomear', k:'F2', fn:() => fxRename(one.id)});
+  items.push({ic:'🎨', l:'Mudar cor…', fn:r => fxShowColor(ids, r)});
+  items.push({sep:1});
+  items.push({ic:'📄', l:'Copiar', k:fxKb('C'), fn:() => fxCopy(ids, 'copy')});
+  items.push({ic:'✂️', l:'Recortar', k:fxKb('X'), fn:() => fxCopy(ids, 'cut')});
+  if (isF) items.push({ic:'📋', l:'Colar dentro', k:fxKb('V'), disabled:!fx.clip, fn:() => fxPaste(one.id)});
+  items.push({ic:'🗂️', l:'Duplicar', k:fxKb('D'), fn:() => fxDuplicate(ids)});
+  items.push({ic:'📦', l:'Mover para…', fn:() => fxMoveDialog(ids)});
+  if (isF){
+    items.push({sep:1});
+    items.push({ic:'📁', l:'Nova pasta dentro', fn:() => fxCreate('f', one.id)});
+    items.push({ic:'📒', l:'Nova coleção dentro', fn:() => fxCreate('c', one.id)});
+  }
+  items.push({sep:1});
+  items.push({ic:'🗑️', l:'Excluir', k:'Del', danger:true, fn:() => fxDelete(ids)});
+  return items;
+}
+
+// ---------- seleção ----------
+function fxSelectAll(){ fxVisible().forEach(n => fx.sel.add(n.id)); fxRender(); }
+function fxSelClick(id, e){
+  const order = fxVisible().map(n => n.id);
+  if (e.shiftKey && fx.anchor && order.includes(fx.anchor)){
+    const a = order.indexOf(fx.anchor), b = order.indexOf(id);
+    const [lo, hi] = a < b ? [a, b] : [b, a];
+    if (!(fxMod(e))) fx.sel.clear();
+    order.slice(lo, hi + 1).forEach(i => fx.sel.add(i));
+  } else if (fxMod(e)){
+    if (fx.sel.has(id)) fx.sel.delete(id); else fx.sel.add(id);
+    fx.anchor = id;
+  } else {
+    fx.sel = new Set([id]); fx.anchor = id;
+  }
+  fxRefreshSel();
+}
+function fxRefreshSel(){
+  document.querySelectorAll('.fx-item').forEach(el => el.classList.toggle('sel', fx.sel.has(el.dataset.id)));
+  fxRenderSelBar();
+}
+// ids de alvo para um clique direito / menu: se o item já está selecionado usa a seleção toda
+function fxTargetIds(id){
+  if (!id) return [];
+  if (!fx.sel.has(id)){ fx.sel = new Set([id]); fx.anchor = id; fxRefreshSel(); }
+  return [...fx.sel];
+}
+// só os "de cima": se uma pasta e uma filha dela estão selecionadas, fica só a pasta
+function fxTops(ids){ return ids.filter(i => fx.nodes[i] && !ids.some(j => j !== i && fxIsDesc(j, i))); }
+
+// ---------- mover / reordenar ----------
+// beforeId: insere antes desse item; afterId: depois desse item; senão vai pro fim
+function fxMove(ids, targetId, opts){
+  opts = opts || {};
+  targetId = targetId || null;
+  const tgt = targetId ? fx.nodes[targetId] : null;
+  if (targetId && (!tgt || tgt.t !== 'f')) return 0;
+  ids = fxTops(ids).filter(i => i !== targetId && !(targetId && fxIsDesc(i, targetId)));
+  if (!ids.length) return 0;
+  const moving = ids.map(i => fx.nodes[i]);
+  moving.forEach(n => { n.p = targetId; });
+  // reordena os irmãos no destino
+  let sibs = fxKids(targetId).filter(n => !ids.includes(n.id)).sort((a, b) => ((a.o || 0) - (b.o || 0)) || fxCollator(a, b));
+  let idx = sibs.length;
+  const ref = opts.beforeId || opts.afterId;
+  if (ref){ const k = sibs.findIndex(n => n.id === ref); if (k >= 0) idx = opts.beforeId ? k : k + 1; }
+  sibs.splice(idx, 0, ...moving);
+  sibs.forEach((n, i) => { n.o = i * 10; });
+  // nomes repetidos no destino
+  moving.forEach(n => { n.n = fxUniqueName(n.n, targetId, n.id); if (n.t === 'c') sb.from('clientes').update({ nome:n.n }).eq('id', n.cid).then(() => {}); });
+  fxSaveSoon();
+  return moving.length;
+}
+function fxMoveDialog(ids){
+  ids = fxTops(ids);
+  if (!ids.length) return;
+  const modal = fxEl('fxMoveModal');
+  let chosen = fx.nodes[ids[0]] ? (fx.nodes[ids[0]].p || '') : '';
+  const bad = id => ids.includes(id) || ids.some(i => fxIsDesc(i, id));
+  const rows = [];
+  const walk = (pid, depth) => fxSorted(pid).filter(n => n.t === 'f').forEach(n => { rows.push({n, depth}); walk(n.id, depth + 1); });
+  const prevSort = fx.sort; fx.sort = 'nome'; walk(null, 0); fx.sort = prevSort;
+  const draw = () => {
+    fxEl('fxTree').innerHTML = `<button class="fx-tn${chosen === '' ? ' on' : ''}" data-id="">🏠 Início (raiz)</button>` +
+      rows.map(({n, depth}) => `<button class="fx-tn${chosen === n.id ? ' on' : ''}" data-id="${n.id}" style="padding-left:${10 + depth * 18}px" ${bad(n.id) ? 'disabled' : ''}><span class="dot" style="background:${n.col || FX_DEFAULT}"></span>${fxEsc(n.n)}</button>`).join('');
+    fxEl('fxTree').querySelectorAll('.fx-tn').forEach(b => b.addEventListener('click', () => { if (b.disabled) return; chosen = b.dataset.id; draw(); }));
+  };
+  fxEl('fxMoveSub').textContent = ids.length === 1 ? `“${fx.nodes[ids[0]].n}”` : `${ids.length} itens`;
+  draw();
+  modal.style.display = 'flex';
+  const close = () => { modal.style.display = 'none'; fxEl('fxMoveOk').onclick = null; fxEl('fxMoveCancel').onclick = null; };
+  fxEl('fxMoveCancel').onclick = close;
+  fxEl('fxMoveOk').onclick = () => {
+    const n = fxMove(ids, chosen || null);
+    close();
+    if (n){ fx.sel.clear(); fxRender(); showToast(`${n} item${n > 1 ? 'ns movidos' : ' movido'}`); }
+  };
+}
+
+// ---------- copiar / colar / duplicar ----------
+function fxCopy(ids, mode){
+  ids = fxTops(ids);
+  if (!ids.length) return;
+  fx.clip = {mode, ids};
+  fxRender();
+  showToast(mode === 'cut' ? `${ids.length} item${ids.length > 1 ? 'ns recortados' : ' recortado'}` : `${ids.length} item${ids.length > 1 ? 'ns copiados' : ' copiado'}`);
+}
+async function fxCloneCollectionData(cid, newName, onStep){
+  const { data: novo, error } = await sb.from('clientes').insert({ nome: newName }).select().single();
+  if (error) throw error;
+  fx.rows.push(novo);
+  const newId = novo.id;
+  // referências (mantém created_at pra preservar a ordem)
+  let from = 0, copied = 0;
+  for (let page = 0; page < 60; page++){
+    const { data, error: e2 } = await sb.from('client_refs').select('*').eq('cliente_id', cid).order('created_at', {ascending:true}).range(from, from + 499);
+    if (e2) throw e2;
+    if (!data || !data.length) break;
+    const rowsNew = data.map(r => { const o = {...r}; delete o.id; o.cliente_id = newId; return o; });
+    for (let i = 0; i < rowsNew.length; i += 100){
+      const { error: e3 } = await sb.from('client_refs').insert(rowsNew.slice(i, i + 100));
+      if (e3) throw e3;
+    }
+    copied += data.length; if (onStep) onStep(`Copiando referências (${copied})…`);
+    if (data.length < 500) break;
+    from += 500;
+  }
+  // PDFs enviados (copia o arquivo no Storage também)
+  try{
+    const { data: pdfs } = await sb.from('client_pdfs').select('*').eq('cliente_id', cid).order('created_at', {ascending:true});
+    let k = 0;
+    for (const p of (pdfs || [])){
+      const dst = `${newId}/${Date.now()}_${k++}_${p.file_name}`;
+      const { error: ce } = await sb.storage.from('fichas-pdfs').copy(p.storage_path, dst);
+      if (ce){ console.warn('PDF não copiado', p.file_name, ce); continue; }
+      await sb.from('client_pdfs').insert({ cliente_id: newId, file_name: p.file_name, storage_path: dst });
+      if (onStep) onStep(`Copiando PDFs (${k}/${pdfs.length})…`);
+    }
+  }catch(e){ console.warn('PDFs', e); }
+  // preferências locais (abas de lote, cores, filtros)
+  try{
+    ['lookbook_lotes_', 'lookbook_view_'].forEach(pre => { const v = localStorage.getItem(pre + cid); if (v) localStorage.setItem(pre + newId, v); });
+  }catch(e){}
+  return newId;
+}
+async function fxCloneNode(n, newParent, onStep, top){
+  const clone = {...n, id:fxNewId(), p:newParent || null, o:fxNextOrder(newParent), ts:Date.now()};
+  clone.n = fxUniqueName(n.n, newParent, null, true);
+  if (n.t === 'c'){
+    if (onStep) onStep(`Copiando “${n.n}”…`);
+    clone.cid = await fxCloneCollectionData(n.cid, clone.n, onStep);
+  }
+  fx.nodes[clone.id] = clone;
+  if (n.t === 'f'){ for (const k of fxSorted(n.id)) await fxCloneNode(k, clone.id, onStep, false); }
+  return clone;
+}
+async function fxPaste(targetId){
+  if (!fx.clip || fx.busy) return;
+  targetId = targetId || null;
+  const tgt = targetId ? fx.nodes[targetId] : null;
+  if (targetId && (!tgt || tgt.t !== 'f')) return;
+  const { mode, ids } = fx.clip;
+  if (mode === 'cut'){
+    const n = fxMove(ids, targetId);
+    fx.clip = null; fx.sel.clear(); fxRender();
+    showToast(n ? `${n} item${n > 1 ? 'ns movidos' : ' movido'}` : 'Não dá pra colar uma pasta dentro dela mesma');
+    return;
+  }
+  const valid = ids.filter(i => fx.nodes[i] && !(targetId && (i === targetId || fxIsDesc(i, targetId))));
+  if (!valid.length){ showToast('Não dá pra colar uma pasta dentro dela mesma'); return; }
+  await fxCopyInto(valid, targetId);
+}
+async function fxCopyInto(ids, targetId){
+  if (fx.busy) return;
+  fx.busy = true;
+  const grid = fxEl('fxArea'); grid.style.opacity = '.6'; grid.style.pointerEvents = 'none';
+  const created = [];
+  try{
+    for (const id of fxTops(ids)){
+      const c = await fxCloneNode(fx.nodes[id], targetId, t => fxSetSave(t, 'busy'), true);
+      created.push(c.id);
+    }
+    fx.sel = (targetId || null) === (fx.cur || null) ? new Set(created) : new Set();
+    fxSaveSoon();
+    showToast(`${created.length} item${created.length > 1 ? 'ns copiados' : ' copiado'}`);
+  }catch(err){
+    console.warn(err); showToast('Erro ao copiar: ' + (err.message || err));
+    fxSaveSoon();
+  }
+  fx.busy = false; grid.style.opacity = ''; grid.style.pointerEvents = '';
+  fxRender();
+}
+function fxDuplicate(ids){
+  ids = fxTops(ids); if (!ids.length) return;
+  const parent = fx.nodes[ids[0]].p || null;
+  fxCopyInto(ids, parent);
+}
+
+// ---------- excluir ----------
+async function fxDeleteCollectionData(cid){
+  try{
+    const { data: pdfs } = await sb.from('client_pdfs').select('storage_path').eq('cliente_id', cid);
+    if (pdfs && pdfs.length) await sb.storage.from('fichas-pdfs').remove(pdfs.map(p => p.storage_path));
+  }catch(e){}
+  try{ await sb.from('client_refs').delete().eq('cliente_id', cid); }catch(e){}
+  try{ await sb.from('client_pdfs').delete().eq('cliente_id', cid); }catch(e){}
+  const { error } = await sb.from('clientes').delete().eq('id', cid);
+  if (error) throw error;
+  fx.rows = fx.rows.filter(r => r.id !== cid);
+  try{ ['lookbook_lotes_', 'lookbook_view_'].forEach(pre => localStorage.removeItem(pre + cid)); }catch(e){}
+}
+function fxDelete(ids){
+  ids = fxTops(ids); if (!ids.length || fx.busy) return;
+  const all = ids.flatMap(i => fxSubtree(i));
+  const nf = all.filter(n => n.t === 'f').length, nc = all.filter(n => n.t === 'c').length;
+  const names = ids.length === 1 ? `“${fx.nodes[ids[0]].n}”` : `${ids.length} itens`;
+  let txt = `Apagar ${names}?`;
+  const parts = [];
+  if (ids.length === 1 && nf > 1) parts.push(`${nf - 1} subpasta${nf - 1 > 1 ? 's' : ''}`);
+  else if (ids.length > 1 && nf) parts.push(`${nf} pasta${nf > 1 ? 's' : ''}`);
+  if (nc) parts.push(`${nc} coleç${nc > 1 ? 'ões' : 'ão'}`);
+  if (parts.length) txt += ` Isso também apaga ${parts.join(' e ')}, com todos os prompts e PDFs. Não dá pra desfazer.`;
+  showConfirm(txt, async () => {
+    fx.busy = true; fxSetSave('Apagando…', 'busy');
+    let fail = 0;
+    for (const n of all){
+      if (n.t === 'c'){ try{ await fxDeleteCollectionData(n.cid); }catch(e){ fail++; console.warn(e); showToast('Erro ao apagar “' + n.n + '”: ' + (e.message || e)); continue; } }
+      delete fx.nodes[n.id];
+    }
+    if (fx.clip) fx.clip.ids = fx.clip.ids.filter(i => fx.nodes[i]);
+    if (fx.clip && !fx.clip.ids.length) fx.clip = null;
+    fx.sel.clear(); fx.busy = false;
+    if (fx.cur && !fx.nodes[fx.cur]) fx.cur = null;
+    fxSaveSoon(); fxRender();
+    if (!fail) showToast('Apagado');
+  });
+}
+
+// ---------- arrastar e soltar ----------
+function fxDropZone(e, el, n){
+  const r = el.getBoundingClientRect();
+  const list = fx.view === 'list';
+  const p = list ? (e.clientY - r.top) / r.height : (e.clientX - r.left) / r.width;
+  const manual = fx.sort === 'manual' && !fx.q.trim();
+  if (n.t === 'f'){
+    if (manual && p < 0.22) return 'before';
+    if (manual && p > 0.78) return 'after';
+    return 'into';
+  }
+  if (!manual) return null;
+  return p < 0.5 ? 'before' : 'after';
+}
+function fxClearDrop(){
+  document.querySelectorAll('.drop-into,.drop-before,.drop-after,.dragging').forEach(el => el.classList.remove('drop-into', 'drop-before', 'drop-after', 'dragging'));
+  document.querySelectorAll('.fx-crumb.drop').forEach(el => el.classList.remove('drop'));
+  fxEl('fxArea').classList.remove('drop');
+}
+function fxDropAllowed(zone, n){
+  if (!fx.drag) return false;
+  const ids = fx.drag;
+  if (zone === 'into'){
+    return n.t === 'f' && !ids.includes(n.id) && !ids.some(i => fxIsDesc(i, n.id));
+  }
+  // antes/depois: o destino é o pai do item
+  if (ids.includes(n.id)) return false;
+  const p = n.p || null;
+  return !(p && (ids.includes(p) || ids.some(i => fxIsDesc(i, p))));
+}
+async function fxDropExec(zone, targetNode, copyMode){
+  const ids = fx.drag || [];
+  fx.drag = null; fxClearDrop();
+  if (!ids.length) return;
+  if (copyMode){
+    const dest = zone === 'into' ? targetNode.id : (targetNode.p || null);
+    await fxCopyInto(ids, dest); return;
+  }
+  let n = 0;
+  if (zone === 'into') n = fxMove(ids, targetNode.id);
+  else n = fxMove(ids, targetNode.p || null, zone === 'before' ? {beforeId:targetNode.id} : {afterId:targetNode.id});
+  if (n){ fxRender(); if (zone === 'into') showToast(`${n} item${n > 1 ? 'ns movidos' : ' movido'} para “${targetNode.n}”`); }
+}
+
+// ---------- eventos ----------
+function fxVisibleScreen(){ return fxEl('clientsScreen').style.display !== 'none'; }
+function fxModalOpen(){ return [...document.querySelectorAll('.modal-overlay')].some(m => m.style.display === 'flex'); }
+
+function fxInit(){
+  // elementos flutuantes
+  const menu = document.createElement('div'); menu.id = 'fxMenu'; menu.className = 'fx-menu'; menu.hidden = true; document.body.appendChild(menu);
+  const pop = document.createElement('div'); pop.id = 'fxColor'; pop.className = 'fx-pop'; pop.hidden = true; document.body.appendChild(pop);
+  const mv = document.createElement('div'); mv.id = 'fxMoveModal'; mv.className = 'modal-overlay'; mv.style.display = 'none';
+  mv.innerHTML = `<div class="modal-card fx-move-card"><h3>Mover para…</h3><p class="fx-sub" id="fxMoveSub"></p><div class="fx-tree" id="fxTree"></div>
+    <div class="modal-actions"><button class="pill-btn pill-ghost" id="fxMoveCancel">Cancelar</button><button class="pill-btn pill-solid" id="fxMoveOk">Mover aqui</button></div></div>`;
+  document.body.appendChild(mv);
+
+  const area = fxEl('fxArea');
+  fxEl('fxNewFolder').addEventListener('click', () => fxCreate('f'));
+  fxEl('fxNewColl').addEventListener('click', () => fxCreate('c'));
+  fxEl('fxPaste').addEventListener('click', () => fxPaste(fx.cur));
+  fxEl('fxSort').addEventListener('change', e => { fx.sort = e.target.value; fxSavePrefs(); fxRender(); });
+  fxEl('fxView').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; fx.view = b.dataset.v; fxSavePrefs(); fxRender(); });
+  fxEl('fxSearch').addEventListener('input', e => { fx.q = e.target.value; fx.sel.clear(); fxRender(); });
+  fxEl('fxCrumbs').addEventListener('click', e => { const b = e.target.closest('.fx-crumb'); if (b && !b.classList.contains('last')) fxGo(b.dataset.id); });
+  fxEl('fxSelBar').addEventListener('click', e => {
+    const b = e.target.closest('[data-a]'); if (!b) return;
+    const ids = [...fx.sel], a = b.dataset.a, r = b.getBoundingClientRect();
+    if (a === 'open') fxOpen(ids[0]);
+    else if (a === 'rename') fxRename(ids[0]);
+    else if (a === 'color') fxShowColor(ids, r);
+    else if (a === 'copy') fxCopy(ids, 'copy');
+    else if (a === 'cut') fxCopy(ids, 'cut');
+    else if (a === 'move') fxMoveDialog(ids);
+    else if (a === 'delete') fxDelete(ids);
+    else if (a === 'clear'){ fx.sel.clear(); fxRefreshSel(); }
+  });
+
+  area.addEventListener('click', e => {
+    const more = e.target.closest('.fx-more');
+    const el = e.target.closest('.fx-item');
+    if (!el){ if (fx.sel.size){ fx.sel.clear(); fxRefreshSel(); } return; }
+    if (fx.renaming) return;
+    const id = el.dataset.id;
+    if (more){
+      e.stopPropagation();
+      const ids = fxTargetIds(id);
+      fxShowMenu(fxMenuItems(ids), more.getBoundingClientRect());
+      return;
+    }
+    const coarse = matchMedia('(pointer:coarse)').matches;
+    if (coarse && !e.shiftKey && !fxMod(e) && !fx.sel.size){ fxOpen(id); return; }
+    if (coarse && fx.sel.size === 1 && fx.sel.has(id) && !e.shiftKey && !fxMod(e)){ fxOpen(id); return; }
+    fxSelClick(id, e);
+  });
+  area.addEventListener('dblclick', e => { const el = e.target.closest('.fx-item'); if (el && !e.target.closest('.fx-rename')) fxOpen(el.dataset.id); });
+  area.addEventListener('contextmenu', e => {
+    e.preventDefault();
+    const el = e.target.closest('.fx-item');
+    const ids = el ? fxTargetIds(el.dataset.id) : (fx.sel.clear(), fxRefreshSel(), []);
+    fxShowMenu(fxMenuItems(ids), {left:e.clientX, right:e.clientX, top:e.clientY, bottom:e.clientY});
+  });
+
+  // arrastar
+  area.addEventListener('dragstart', e => {
+    const el = e.target.closest('.fx-item'); if (!el || fx.renaming || fx.q.trim()){ e.preventDefault(); return; }
+    const id = el.dataset.id;
+    if (!fx.sel.has(id)){ fx.sel = new Set([id]); fx.anchor = id; fxRefreshSel(); }
+    fx.drag = fxTops([...fx.sel]);
+    e.dataTransfer.effectAllowed = 'copyMove';
+    try{ e.dataTransfer.setData('text/plain', 'pastas'); }catch(err){}
+    setTimeout(() => fx.drag && fx.drag.forEach(i => { const t = document.querySelector(`.fx-item[data-id="${i}"]`); if (t) t.classList.add('dragging'); }), 0);
+  });
+  area.addEventListener('dragover', e => {
+    if (!fx.drag) return;
+    const el = e.target.closest('.fx-item');
+    document.querySelectorAll('.drop-into,.drop-before,.drop-after').forEach(x => x.classList.remove('drop-into', 'drop-before', 'drop-after'));
+    area.classList.remove('drop');
+    e.dataTransfer.dropEffect = e.altKey ? 'copy' : 'move';
+    if (el){
+      const n = fx.nodes[el.dataset.id]; const zone = fxDropZone(e, el, n);
+      if (zone && fxDropAllowed(zone, n)){ e.preventDefault(); el.classList.add('drop-' + zone); }
+    } else if (!fx.q.trim()){
+      e.preventDefault(); area.classList.add('drop');
+    }
+  });
+  area.addEventListener('dragleave', e => { if (!area.contains(e.relatedTarget)) fxClearDrop(); });
+  area.addEventListener('drop', e => {
+    if (!fx.drag) return;
+    e.preventDefault();
+    const el = e.target.closest('.fx-item');
+    if (el){
+      const n = fx.nodes[el.dataset.id]; const zone = fxDropZone(e, el, n);
+      if (zone && fxDropAllowed(zone, n)) fxDropExec(zone, n, e.altKey);
+      else { fx.drag = null; fxClearDrop(); }
+    } else {
+      const ids = fx.drag; fx.drag = null; fxClearDrop();
+      if (e.altKey) fxCopyInto(ids, fx.cur); else { const n = fxMove(ids, fx.cur); if (n) fxRender(); }
+    }
+  });
+  area.addEventListener('dragend', () => { fx.drag = null; fxClearDrop(); });
+  // soltar nas migalhas (volta pra pasta acima)
+  const crumbs = fxEl('fxCrumbs');
+  crumbs.addEventListener('dragover', e => {
+    if (!fx.drag) return; const b = e.target.closest('.fx-crumb'); if (!b || b.classList.contains('last')) return;
+    e.preventDefault(); crumbs.querySelectorAll('.fx-crumb.drop').forEach(x => x.classList.remove('drop')); b.classList.add('drop');
+  });
+  crumbs.addEventListener('dragleave', () => crumbs.querySelectorAll('.fx-crumb.drop').forEach(x => x.classList.remove('drop')));
+  crumbs.addEventListener('drop', e => {
+    if (!fx.drag) return; const b = e.target.closest('.fx-crumb'); if (!b || b.classList.contains('last')) return;
+    e.preventDefault(); const ids = fx.drag; fx.drag = null; fxClearDrop();
+    const dest = b.dataset.id || null;
+    if (e.altKey) fxCopyInto(ids, dest); else { const n = fxMove(ids, dest); if (n){ fxRender(); showToast(`${n} item${n > 1 ? 'ns movidos' : ' movido'}`); } }
+  });
+
+  // fechar menus
+  document.addEventListener('mousedown', e => { if (!e.target.closest('#fxMenu, #fxColor, .fx-more')) fxCloseMenus(); });
+  window.addEventListener('scroll', fxCloseMenus, true);
+  window.addEventListener('resize', fxCloseMenus);
+
+  // teclado
+  document.addEventListener('keydown', e => {
+    if (!fxVisibleScreen() || fxModalOpen()) return;
+    const t = e.target;
+    if (t && (t.isContentEditable || /INPUT|TEXTAREA|SELECT/.test(t.tagName))){ if (!(t.id === 'fxSearch' && e.key === 'Escape')) return; }
+    const ids = [...fx.sel];
+    const k = e.key.toLowerCase();
+    if (e.key === 'Escape'){
+      if (!fxEl('fxMenu').hidden || !fxEl('fxColor').hidden){ fxCloseMenus(); return; }
+      if (fx.q){ fx.q = ''; fxEl('fxSearch').value = ''; fxEl('fxSearch').blur(); fxRender(); return; }
+      if (fx.sel.size){ fx.sel.clear(); fxRefreshSel(); } return;
+    }
+    if (fxMod(e) && k === 'a'){ e.preventDefault(); fxSelectAll(); return; }
+    if (fxMod(e) && k === 'c' && ids.length){ e.preventDefault(); fxCopy(ids, 'copy'); return; }
+    if (fxMod(e) && k === 'x' && ids.length){ e.preventDefault(); fxCopy(ids, 'cut'); return; }
+    if (fxMod(e) && k === 'v' && fx.clip){
+      e.preventDefault();
+      const one = ids.length === 1 ? fx.nodes[ids[0]] : null;
+      fxPaste(one && one.t === 'f' ? one.id : fx.cur); return;
+    }
+    if (fxMod(e) && k === 'd' && ids.length){ e.preventDefault(); fxDuplicate(ids); return; }
+    if (e.key === 'Enter' && ids.length === 1){ e.preventDefault(); fxOpen(ids[0]); return; }
+    if (e.key === 'F2' && ids.length === 1){ e.preventDefault(); fxRename(ids[0]); return; }
+    if ((e.key === 'Delete' || (e.key === 'Backspace' && ids.length)) && ids.length){ e.preventDefault(); fxDelete(ids); return; }
+    if ((e.key === 'Backspace' || (e.altKey && e.key === 'ArrowUp')) && !ids.length && fx.cur){ e.preventDefault(); const n = fx.nodes[fx.cur]; fxGo(n ? n.p : null); return; }
+    if (e.key.startsWith('Arrow')){
+      const order = fxVisible().map(n => n.id); if (!order.length) return;
+      e.preventDefault();
+      const els = order.map(i => document.querySelector(`.fx-item[data-id="${i}"]`));
+      let cur = fx.anchor && order.includes(fx.anchor) ? order.indexOf(fx.anchor) : -1;
+      let next;
+      if (cur < 0) next = 0;
+      else if (e.key === 'ArrowRight' || (fx.view === 'list' && e.key === 'ArrowDown')) next = Math.min(order.length - 1, cur + 1);
+      else if (e.key === 'ArrowLeft' || (fx.view === 'list' && e.key === 'ArrowUp')) next = Math.max(0, cur - 1);
+      else {
+        const colsN = els.filter(x => x && x.offsetTop === els[0].offsetTop).length || 1;
+        next = e.key === 'ArrowDown' ? Math.min(order.length - 1, cur + colsN) : Math.max(0, cur - colsN);
       }
-      showAppScreen({id: row.dataset.id, nome: row.dataset.nome});
-    });
-
-    row.querySelector('.delete-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      showConfirm(`Apagar o cliente "${row.dataset.nome}"?`, async () => {
-        const { error } = await sb.from('clientes').delete().eq('id', id);
-        if (error){ alert('Erro ao apagar: ' + error.message); return; }
-        loadClients();
-      });
-    });
-
-    row.querySelector('.edit-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      const nameSpan = row.querySelector('.name');
-      const current = row.dataset.nome;
-      const input = document.createElement('input');
-      input.type = 'text'; input.value = current; input.className = 'name-input';
-      nameSpan.replaceWith(input);
-      input.focus(); input.select();
-
-      const save = async () => {
-        const novoNome = input.value.trim();
-        if (!novoNome || novoNome === current){ loadClients(); return; }
-        const { error } = await sb.from('clientes').update({ nome: novoNome }).eq('id', id);
-        if (error){ alert('Erro ao renomear: ' + error.message); return; }
-        loadClients();
-      };
-      input.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter') save();
-        if (ev.key === 'Escape') loadClients();
-      });
-      input.addEventListener('blur', save);
-    });
+      const id = order[next];
+      if (e.shiftKey && fx.anchor){ fx.sel.add(id); } else fx.sel = new Set([id]);
+      fx.anchor = id; fxRefreshSel();
+      if (els[next] && els[next].scrollIntoView) els[next].scrollIntoView({block:'nearest'});
+    }
   });
-
-  updateDeleteSelectedLabel();
 }
 
-function toggleSelected(id, checked){
-  if (checked) selectedIds.add(id); else selectedIds.delete(id);
-  updateDeleteSelectedLabel();
+// ---------- entrada da tela ----------
+async function loadClients(){
+  const area = fxEl('fxArea');
+  if (!fx.loaded) fxEl('fxGrid').innerHTML = '<p style="color:var(--muted); font-size:13px; padding:10px;">Carregando...</p>';
+  fxEl('fxEmpty').style.display = 'none';
+  const err = await fxLoad();
+  if (err){
+    fxEl('fxGrid').innerHTML = `<p style="color:var(--warn); font-size:13px; padding:10px;">Erro ao carregar: ${fxEsc(err)}</p>`;
+    return;
+  }
+  if (fx.cur && !fx.nodes[fx.cur]) fx.cur = null;
+  fx.sel.clear();
+  fxRender();
+  fxLoadCounts();
 }
-function updateDeleteSelectedLabel(){
-  const btn = document.getElementById('btnDeleteSelected');
-  btn.textContent = `Apagar selecionadas (${selectedIds.size})`;
-  btn.disabled = selectedIds.size === 0;
-}
-
-document.getElementById('btnToggleSelect').addEventListener('click', () => {
-  selectMode = true; selectedIds.clear();
-  document.getElementById('btnToggleSelect').style.display = 'none';
-  document.getElementById('selectionActions').style.display = 'flex';
-  loadClients();
-});
-document.getElementById('btnCancelSelect').addEventListener('click', () => {
-  selectMode = false; selectedIds.clear();
-  document.getElementById('btnToggleSelect').style.display = 'inline-flex';
-  document.getElementById('selectionActions').style.display = 'none';
-  loadClients();
-});
-document.getElementById('btnSelectAll').addEventListener('click', () => {
-  document.querySelectorAll('.client-row').forEach(row => {
-    row.querySelector('.row-check').checked = true;
-    selectedIds.add(row.dataset.id);
-  });
-  updateDeleteSelectedLabel();
-});
-document.getElementById('btnDeleteSelected').addEventListener('click', () => {
-  if (!selectedIds.size) return;
-  showConfirm(`Apagar ${selectedIds.size} cliente(s) selecionado(s)?`, async () => {
-    const { error } = await sb.from('clientes').delete().in('id', Array.from(selectedIds));
-    if (error){ alert('Erro ao apagar: ' + error.message); return; }
-    selectMode = false; selectedIds.clear();
-    document.getElementById('btnToggleSelect').style.display = 'inline-flex';
-    document.getElementById('selectionActions').style.display = 'none';
-    loadClients();
-  });
-});
-
-document.getElementById('btnAddClient').addEventListener('click', async () => {
-  const input = document.getElementById('newClientName');
-  const nome = input.value.trim();
-  if (!nome) return;
-  const { error } = await sb.from('clientes').insert({ nome });
-  if (error){ alert('Erro ao adicionar cliente: ' + error.message); return; }
-  input.value = '';
-  loadClients();
-});
-document.getElementById('newClientName').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('btnAddClient').click();
-});
+fxInit();
 
 
 // ================= Tema =================
