@@ -799,11 +799,6 @@
     overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word;
   }
   .fx-meta{font-size:11.5px; color:var(--muted); margin-top:3px; font-weight:600; min-height:15px;}
-  .fx-kind{
-    position:absolute; top:10px; left:10px; font-size:9.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
-    color:color-mix(in srgb, var(--fc) 80%, var(--ink)); background:color-mix(in srgb, var(--fc) 14%, transparent);
-    padding:3px 8px; border-radius:999px;
-  }
   .fx-prog{width:78%; height:4px; border-radius:4px; background:var(--line); margin-top:8px; overflow:hidden;}
   .fx-prog i{display:block; height:100%; width:0; background:var(--fc); border-radius:4px; transition:width .5s ease;}
   .fx-more{
@@ -826,7 +821,6 @@
   .fx-grid.list .fx-ico svg{filter:none;}
   .fx-grid.list .fx-name{-webkit-line-clamp:1; flex:1; font-size:14px;}
   .fx-grid.list .fx-meta{margin:0; min-width:150px; text-align:right;}
-  .fx-grid.list .fx-kind{position:static; flex:none; width:76px; text-align:center;}
   .fx-grid.list .fx-prog{width:90px; margin:0; flex:none;}
   .fx-grid.list .fx-more{position:static; opacity:.6; flex:none;}
   .fx-grid.list .fx-item.drop-before::before, .fx-grid.list .fx-item.drop-after::after{left:10px; right:10px; width:auto; height:4px; top:auto; bottom:auto;}
@@ -884,10 +878,28 @@
   .fx-tn .dot{width:12px; height:12px; border-radius:4px; flex:none;}
   .fx-move-card .modal-actions{justify-content:flex-end;}
 
+
+  .fx-selbar{position:sticky; top:8px; z-index:20; min-height:46px; box-shadow:0 6px 18px rgba(0,0,0,.05); animation:none;}
+  .fx-chip.on{background:var(--mono-btn-bg); color:var(--mono-btn-text);}
+  .fx-dot{display:inline-block; width:12px; height:12px; border-radius:50%; border:2px solid currentColor; margin-right:7px; vertical-align:-1px; box-sizing:border-box;}
+  .fx-dot.on{background:currentColor; box-shadow:inset 0 0 0 2px var(--mono-btn-bg);}
+  .fx-hint{font-size:12px; color:var(--muted); margin-left:6px; font-weight:600;}
+  .fx-check{
+    position:absolute; top:10px; left:10px; width:24px; height:24px; border-radius:50%; padding:0; cursor:pointer;
+    border:2px solid color-mix(in srgb, var(--ink) 35%, transparent); background:var(--card); color:transparent;
+    display:flex; align-items:center; justify-content:center; opacity:0; transition:opacity .15s, background .15s, border-color .15s, transform .15s; z-index:2;
+  }
+  .fx-check svg{width:14px; height:14px;}
+  .fx-item:hover .fx-check, .fx-area.selecting .fx-check{opacity:1;}
+  .fx-check:hover{transform:scale(1.12); border-color:var(--ink);}
+  .fx-item.sel .fx-check{opacity:1; background:var(--mono-btn-bg); border-color:var(--mono-btn-bg); color:var(--mono-btn-text);}
+  @media (pointer:coarse){ .fx-check{opacity:1;} }
+  .fx-grid.list .fx-check{position:static; flex:none; opacity:0;}
+  .fx-grid.list .fx-item:hover .fx-check, .fx-grid.list .fx-area.selecting .fx-check, .fx-area.selecting .fx-grid.list .fx-check, .fx-grid.list .fx-item.sel .fx-check{opacity:1;}
   @keyframes fxIn{from{opacity:0; transform:translateY(8px) scale(.98);} to{opacity:1; transform:none;}}
   @keyframes fxPop{from{opacity:0; transform:scale(.96);} to{opacity:1; transform:none;}}
   @media (prefers-reduced-motion:reduce){ .fx-item, .fx-menu, .fx-pop, .fx-selbar{animation:none;} .fx-item, .fx-ico{transition:none;} }
-  @media (max-width:560px){ .fx-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px;} .fx-search input{width:100px;} .fx-grid.list .fx-meta, .fx-grid.list .fx-kind{display:none;} }
+  @media (max-width:560px){ .fx-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px;} .fx-search input{width:100px;} .fx-grid.list .fx-meta{display:none;} }
 </style>
 </head>
 <body data-theme="light">
@@ -957,7 +969,7 @@
       </div>
     </div>
 
-    <div class="fx-selbar" id="fxSelBar" hidden></div>
+    <div class="fx-selbar" id="fxSelBar"></div>
 
     <div class="fx-area" id="fxArea" tabindex="-1">
       <div class="fx-grid" id="fxGrid"></div>
@@ -1240,7 +1252,7 @@ const FX_PREFS = 'lookbook_pastas_prefs';
 const fx = {
   nodes:{}, rows:[], reservedId:null, refId:null, loaded:false, savedAt:0,
   cur:null, sel:new Set(), anchor:null, clip:null, counts:{},
-  view:'grid', sort:'manual', q:'', drag:null, busy:false, renaming:null
+  view:'grid', sort:'manual', q:'', drag:null, busy:false, renaming:null, selMode:false
 };
 const fxEl = id => document.getElementById(id);
 const fxEsc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -1430,7 +1442,7 @@ function fxItemHTML(n, i, searching){
   let prog = '';
   if (n.t === 'c'){ const c = fx.counts[n.cid]; prog = `<div class="fx-prog"><i style="width:${c && c.total ? Math.round(100 * c.gerado / c.total) : 0}%"></i></div>`; }
   return `<div class="fx-item${fx.sel.has(n.id) ? ' sel' : ''}${fx.clip && fx.clip.mode === 'cut' && fx.clip.ids.includes(n.id) ? ' cut' : ''}" data-id="${n.id}" data-t="${n.t}" draggable="${searching ? 'false' : 'true'}" style="--fc:${col};--i:${Math.min(i, 24)}" role="button" aria-label="${fxEsc(n.n)}">
-    <span class="fx-kind">${n.t === 'c' ? 'Coleção' : 'Pasta'}</span>
+    <button class="fx-check" title="Selecionar" aria-label="Selecionar"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 8.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     <button class="fx-more" title="Mais opções" aria-label="Mais opções">⋯</button>
     <div class="fx-ico">${fxIcon(n)}</div>
     <div class="fx-name">${fxEsc(n.n)}</div>
@@ -1475,8 +1487,13 @@ function fxRenderCrumbs(){
 }
 function fxRenderSelBar(){
   const bar = fxEl('fxSelBar'), n = fx.sel.size;
-  bar.hidden = !n;
-  if (!n) return;
+  const area = fxEl('fxArea'); if (area) area.classList.toggle('selecting', fx.selMode || n > 0);
+  if (!n){
+    bar.innerHTML = `<button class="fx-chip${fx.selMode ? ' on' : ''}" data-a="mode"><span class="fx-dot${fx.selMode ? ' on' : ''}"></span>Selecionar</button>
+      <button class="fx-chip" data-a="all">Selecionar tudo</button>
+      <span class="fx-hint">${fx.selMode ? 'Toque nas pastas para marcar' : 'Clique para abrir · use a bolinha para selecionar'}</span>`;
+    return;
+  }
   const single = n === 1;
   bar.innerHTML = `<b>${n} selecionad${n > 1 ? 'os' : 'o'}</b>
     ${single ? '<button class="fx-chip" data-a="open">Abrir</button><button class="fx-chip" data-a="rename">Renomear</button>' : ''}
@@ -1484,6 +1501,7 @@ function fxRenderSelBar(){
     <button class="fx-chip" data-a="copy">Copiar</button>
     <button class="fx-chip" data-a="cut">Recortar</button>
     <button class="fx-chip" data-a="move">Mover para…</button>
+    <button class="fx-chip" data-a="all">Selecionar tudo</button>
     <button class="fx-chip danger" data-a="delete">Excluir</button>
     <button class="fx-chip x" data-a="clear" title="Limpar seleção">✕</button>`;
 }
@@ -1516,7 +1534,7 @@ async function fxCreate(type, pid){
   fx.nodes[node.id] = node;
   if (fx.q.trim()){ fx.q = ''; fxEl('fxSearch').value = ''; }
   if (pid && pid !== fx.cur){ fx.cur = pid; }
-  fx.sel = new Set([node.id]); fx.anchor = node.id;
+  fx.sel = new Set(); fx.anchor = node.id;
   fxSaveSoon(); fxRender();
   fxRename(node.id, true);
 }
@@ -1644,6 +1662,7 @@ function fxSelClick(id, e){
   }
   fxRefreshSel();
 }
+function fxToggle(id){ if (fx.sel.has(id)) fx.sel.delete(id); else fx.sel.add(id); fx.anchor = id; fxRefreshSel(); }
 function fxRefreshSel(){
   document.querySelectorAll('.fx-item').forEach(el => el.classList.toggle('sel', fx.sel.has(el.dataset.id)));
   fxRenderSelBar();
@@ -1789,7 +1808,7 @@ async function fxCopyInto(ids, targetId){
       const c = await fxCloneNode(fx.nodes[id], targetId, t => fxSetSave(t, 'busy'), true);
       created.push(c.id);
     }
-    fx.sel = (targetId || null) === (fx.cur || null) ? new Set(created) : new Set();
+    fx.sel = new Set();
     fxSaveSoon();
     showToast(`${created.length} item${created.length > 1 ? 'ns copiados' : ' copiado'}`);
   }catch(err){
@@ -1920,7 +1939,9 @@ function fxInit(){
     else if (a === 'cut') fxCopy(ids, 'cut');
     else if (a === 'move') fxMoveDialog(ids);
     else if (a === 'delete') fxDelete(ids);
-    else if (a === 'clear'){ fx.sel.clear(); fxRefreshSel(); }
+    else if (a === 'clear'){ fx.sel.clear(); fx.selMode = false; fxRefreshSel(); }
+    else if (a === 'mode'){ fx.selMode = !fx.selMode; fxRefreshSel(); }
+    else if (a === 'all'){ fx.selMode = true; fxSelectAll(); }
   });
 
   area.addEventListener('click', e => {
@@ -1935,12 +1956,11 @@ function fxInit(){
       fxShowMenu(fxMenuItems(ids), more.getBoundingClientRect());
       return;
     }
-    const coarse = matchMedia('(pointer:coarse)').matches;
-    if (coarse && !e.shiftKey && !fxMod(e) && !fx.sel.size){ fxOpen(id); return; }
-    if (coarse && fx.sel.size === 1 && fx.sel.has(id) && !e.shiftKey && !fxMod(e)){ fxOpen(id); return; }
-    fxSelClick(id, e);
+    if (e.target.closest('.fx-check')){ e.stopPropagation(); fxToggle(id); return; }
+    if (e.shiftKey || fxMod(e)){ fxSelClick(id, e); return; }
+    if (fx.selMode || fx.sel.size){ fxToggle(id); return; }
+    fxOpen(id);
   });
-  area.addEventListener('dblclick', e => { const el = e.target.closest('.fx-item'); if (el && !e.target.closest('.fx-rename')) fxOpen(el.dataset.id); });
   area.addEventListener('contextmenu', e => {
     e.preventDefault();
     const el = e.target.closest('.fx-item');
@@ -2015,7 +2035,7 @@ function fxInit(){
     if (e.key === 'Escape'){
       if (!fxEl('fxMenu').hidden || !fxEl('fxColor').hidden){ fxCloseMenus(); return; }
       if (fx.q){ fx.q = ''; fxEl('fxSearch').value = ''; fxEl('fxSearch').blur(); fxRender(); return; }
-      if (fx.sel.size){ fx.sel.clear(); fxRefreshSel(); } return;
+      if (fx.sel.size || fx.selMode){ fx.sel.clear(); fx.selMode = false; fxRefreshSel(); } return;
     }
     if (fxMod(e) && k === 'a'){ e.preventDefault(); fxSelectAll(); return; }
     if (fxMod(e) && k === 'c' && ids.length){ e.preventDefault(); fxCopy(ids, 'copy'); return; }
